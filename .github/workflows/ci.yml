@@ -1,0 +1,22 @@
+name: mpGEMM CI
+
+on: [push, pull_request]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential g++
+
+      - name: Build project
+        run: |
+          make
+
+      - name: Run main test
+        run: |
+          make run

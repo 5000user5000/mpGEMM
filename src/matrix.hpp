@@ -7,32 +7,6 @@
 #include <iostream>
 
 
-struct Int4 {
-    uint8_t value;
-
-    Int4() : value(0) {}
-    Int4(uint8_t val) : value(val & 0xF) {}
-
-    Int4 operator+(const Int4& other) const {
-        return Int4((value + other.value) & 0xF);
-    }
-
-    Int4& operator+=(const Int4& other) {
-        value = (value + other.value) & 0xF;
-        return *this;
-    }
-
-    Int4 operator*(const Int4& other) const {
-        return Int4((value * other.value) & 0xF);
-    }
-
-
-    friend std::ostream& operator<<(std::ostream& os, const Int4& val) {
-        os << static_cast<int>(val.value);
-        return os;
-    }
-};
-
 
 
 template <typename T>
@@ -54,6 +28,10 @@ public:
     void fill_random();
 
     void print() const;
+
+    void set(int i, int j, T val) {
+        all_row[i][j] = val;
+    }
 
     // Getter / Setter: Access by row
     std::vector<T> getRow(int index) const;
@@ -86,6 +64,10 @@ public:
 
     // Print the matrix
     void print() const;
+
+    void set(int i, int j, T val) {
+        all_column[j][i] = val;
+    }
 
     // Getter / Setter: Access by column
     std::vector<T> getColumn(int index) const;

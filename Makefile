@@ -6,7 +6,7 @@ TEST_DIR := tests
 BUILD_DIR := build
 
 TARGET := $(BUILD_DIR)/main
-SRC := $(SRC_DIR)/matrix.cpp $(TEST_DIR)/main.cpp
+SRC := $(SRC_DIR)/matrix.cpp  $(SRC_DIR)/matrix_packed.cpp  $(TEST_DIR)/main.cpp
 
 all: $(TARGET)
 

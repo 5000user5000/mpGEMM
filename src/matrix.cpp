@@ -39,17 +39,11 @@ template <typename T>
 void Row_Major_Matrix<T>::fill_random() {
     std::random_device rd;
     std::mt19937 gen(rd());
-    if constexpr (std::is_same<T, Int4>::value) {
-        std::uniform_int_distribution<int> dist(0, 15);
-        for (auto &row : all_row)
-            for (auto &val : row)
-                val = Int4(dist(gen));
-    } else {
-        std::uniform_int_distribution<T> dist(1, 100);
-        for (auto &row : all_row)
-            for (auto &val : row)
-                val = dist(gen);
-    }
+    std::uniform_int_distribution<T> dist(1, 100);
+    for (auto &row : all_row)
+        for (auto &val : row)
+            val = dist(gen);
+    
 }
 
 template <typename T>
@@ -196,17 +190,12 @@ template <typename T>
 void Column_Major_Matrix<T>::fill_random() {
     std::random_device rd;
     std::mt19937 gen(rd());
-    if constexpr (std::is_same<T, Int4>::value) {
-        std::uniform_int_distribution<int> dist(0, 15);
-        for (auto &row : all_column)
-            for (auto &val : row)
-                val = Int4(dist(gen));
-    } else {
-        std::uniform_int_distribution<T> dist(1, 100);
-        for (auto &row : all_column)
-            for (auto &val : row)
-                val = dist(gen);
-    }
+
+    std::uniform_int_distribution<T> dist(1, 100);
+    for (auto &row : all_column)
+        for (auto &val : row)
+             val = dist(gen);
+    
 }
 
 template <typename T>
@@ -328,7 +317,3 @@ Column_Major_Matrix<T>::operator Row_Major_Matrix<T>() const {
 // Explicit instantiation
 template class Row_Major_Matrix<int>;
 template class Column_Major_Matrix<int>;
-
-// Explicit instantiation for Int4
-template class Row_Major_Matrix<Int4>;
-template class Column_Major_Matrix<Int4>;

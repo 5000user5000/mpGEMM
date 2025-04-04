@@ -20,3 +20,4 @@ jobs:
       - name: Run main test
         run: |
           make run
+          python3 scripts/benchmark.py 100

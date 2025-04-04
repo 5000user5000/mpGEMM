@@ -3,6 +3,37 @@
 
 #include <vector>
 #include <stdexcept>
+#include <cstdint>
+#include <iostream>
+
+
+struct Int4 {
+    uint8_t value;
+
+    Int4() : value(0) {}
+    Int4(uint8_t val) : value(val & 0xF) {}
+
+    Int4 operator+(const Int4& other) const {
+        return Int4((value + other.value) & 0xF);
+    }
+
+    Int4& operator+=(const Int4& other) {
+        value = (value + other.value) & 0xF;
+        return *this;
+    }
+
+    Int4 operator*(const Int4& other) const {
+        return Int4((value * other.value) & 0xF);
+    }
+
+
+    friend std::ostream& operator<<(std::ostream& os, const Int4& val) {
+        os << static_cast<int>(val.value);
+        return os;
+    }
+};
+
+
 
 template <typename T>
 class Column_Major_Matrix;  // Forward declaration

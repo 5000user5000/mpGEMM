@@ -39,10 +39,17 @@ template <typename T>
 void Row_Major_Matrix<T>::fill_random() {
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<T> dist(1, 100);
-    for (auto &row : all_row)
-        for (auto &val : row)
-            val = dist(gen);
+    if constexpr (std::is_same<T, Int4>::value) {
+        std::uniform_int_distribution<int> dist(0, 15);
+        for (auto &row : all_row)
+            for (auto &val : row)
+                val = Int4(dist(gen));
+    } else {
+        std::uniform_int_distribution<T> dist(1, 100);
+        for (auto &row : all_row)
+            for (auto &val : row)
+                val = dist(gen);
+    }
 }
 
 template <typename T>
@@ -81,7 +88,7 @@ Row_Major_Matrix<T> Row_Major_Matrix<T>::operator*(const Column_Major_Matrix<T>&
     //check input
     if(common == 0 || cm.all_column.empty() || all_row.empty() || cm.all_column[0].empty())
         throw std::runtime_error("Empty matrix");
-    if(common != cm.all_column[0].size())
+    if (static_cast<size_t>(common) != cm.all_column[0].size())
         throw std::runtime_error("Dimension mismatch for multiplication");
 
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -93,7 +100,7 @@ Row_Major_Matrix<T> Row_Major_Matrix<T>::operator*(const Column_Major_Matrix<T>&
             result.all_row[i][j] = sum;
         }
     auto end_time = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+    std::chrono::duration<double, std::milli> duration = end_time - start_time;
     std::cout << "Single-threaded Row_Major multiplication took " << duration.count() << " ms" << std::endl;
     return result;
 }
@@ -109,7 +116,7 @@ Row_Major_Matrix<T> Row_Major_Matrix<T>::operator%(const Column_Major_Matrix<T>&
     //check input
     if(common == 0 || cm.all_column.empty() || all_row.empty() || cm.all_column[0].empty())
         throw std::runtime_error("Empty matrix");
-    if(common != cm.all_column[0].size())
+    if (static_cast<size_t>(common) != cm.all_column[0].size())
         throw std::runtime_error("Dimension mismatch for multiplication");
 
     auto multiply_range = [&](int start, int end) {
@@ -136,7 +143,7 @@ Row_Major_Matrix<T> Row_Major_Matrix<T>::operator%(const Column_Major_Matrix<T>&
     for (auto &t : threads)
         t.join();
     auto end_time = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+    std::chrono::duration<double, std::milli> duration = end_time - start_time;
     std::cout << "Multi-threaded Row_Major multiplication took " << duration.count() << " ms" << std::endl;
 
     return result;
@@ -189,10 +196,17 @@ template <typename T>
 void Column_Major_Matrix<T>::fill_random() {
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<T> dist(1, 100);
-    for (auto &col : all_column)
-        for (auto &val : col)
-            val = dist(gen);
+    if constexpr (std::is_same<T, Int4>::value) {
+        std::uniform_int_distribution<int> dist(0, 15);
+        for (auto &row : all_column)
+            for (auto &val : row)
+                val = Int4(dist(gen));
+    } else {
+        std::uniform_int_distribution<T> dist(1, 100);
+        for (auto &row : all_column)
+            for (auto &val : row)
+                val = dist(gen);
+    }
 }
 
 template <typename T>
@@ -248,7 +262,7 @@ Column_Major_Matrix<T> Column_Major_Matrix<T>::operator*(const Row_Major_Matrix<
         }
     }
     auto end_time = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+    std::chrono::duration<double, std::milli> duration = end_time - start_time;
     std::cout << "Single-threaded Column_Major multiplication took " << duration.count() << " ms" << std::endl;
     return result;
 }
@@ -292,7 +306,7 @@ Column_Major_Matrix<T> Column_Major_Matrix<T>::operator%(const Row_Major_Matrix<
     for (auto &th : threads)
         th.join();
     auto end_time = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+    std::chrono::duration<double, std::milli> duration = end_time - start_time;
     std::cout << "Multi-threaded Column_Major multiplication took " << duration.count() << " ms" << std::endl;
 
     return result;
@@ -314,3 +328,7 @@ Column_Major_Matrix<T>::operator Row_Major_Matrix<T>() const {
 // Explicit instantiation
 template class Row_Major_Matrix<int>;
 template class Column_Major_Matrix<int>;
+
+// Explicit instantiation for Int4
+template class Row_Major_Matrix<Int4>;
+template class Column_Major_Matrix<Int4>;

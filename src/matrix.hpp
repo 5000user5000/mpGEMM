@@ -3,6 +3,11 @@
 
 #include <vector>
 #include <stdexcept>
+#include <cstdint>
+#include <iostream>
+
+
+
 
 template <typename T>
 class Column_Major_Matrix;  // Forward declaration
@@ -23,6 +28,10 @@ public:
     void fill_random();
 
     void print() const;
+
+    void set(int i, int j, T val) {
+        all_row[i][j] = val;
+    }
 
     // Getter / Setter: Access by row
     std::vector<T> getRow(int index) const;
@@ -55,6 +64,10 @@ public:
 
     // Print the matrix
     void print() const;
+
+    void set(int i, int j, T val) {
+        all_column[j][i] = val;
+    }
 
     // Getter / Setter: Access by column
     std::vector<T> getColumn(int index) const;

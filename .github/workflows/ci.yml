@@ -21,3 +21,9 @@ jobs:
         run: |
           make run
           python3 scripts/benchmark.py 100
+      
+      - name: Generate matrix data for correctness test
+        run: python3 scripts/generate_matrix_data.py
+
+      - name: Run correctness test
+        run: make test

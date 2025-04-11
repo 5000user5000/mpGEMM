@@ -1,4 +1,6 @@
 #include "../src/matrix.hpp"
+#include "../src/matrix_packed.hpp"
+#include "../src/matrix_packed_convert.hpp"
 #include <iostream>
 #include <fstream>
 #include <stdexcept>
@@ -6,10 +8,6 @@
 #include <sstream>
 #include <vector>
 #include <string>
-
-//====================================================
-// 定義資料檔路徑目錄
-const std::string DATA_DIR = "../data/";
 
 //====================================================
 // 1. 定義用來比對兩個 Row_Major_Matrix 是否相等的函式
@@ -73,30 +71,29 @@ Row_Major_Matrix<int> load_matrix_txt(const std::string &filename) {
 }
 
 //====================================================
-// 4. 測試案例
+// 4. 一般矩陣測試案例
 
 // (1) 基本 2x2 測試
 bool run_basic_test() {
     std::cout << "Running basic 2x2 test...\n";
-    // 利用直接指定數值來建立矩陣
     Row_Major_Matrix<int> A(2, 2);
     A.all_row = { {1, 2}, {3, 4} };
 
-    // 為 B 建立一個 row-major 矩陣後，轉換成 column-major（透過類別的轉換運算子）
     Row_Major_Matrix<int> B_row(2, 2);
     B_row.all_row = { {5, 6}, {7, 8} };
     Column_Major_Matrix<int> B = B_row;
 
     // 預期乘法結果：
-    // [ 1*5+2*7, 1*6+2*8 ] = [19, 22]
-    // [ 3*5+4*7, 3*6+4*8 ] = [43, 50]
+    // [1*5+2*7, 1*6+2*8] = [19, 22]
+    // [3*5+4*7, 3*6+4*8] = [43, 50]
     Row_Major_Matrix<int> expected(2, 2);
     expected.all_row = { {19, 22}, {43, 50} };
 
     auto result_single = A * B;
     auto result_multi = A % B;
 
-    bool pass = check_equal(result_single, expected) && check_equal(result_multi, expected);
+    bool pass = check_equal(result_single, expected) &&
+                check_equal(result_multi, expected);
     std::cout << (pass ? "Basic test PASS\n" : "Basic test FAIL\n");
     return pass;
 }
@@ -111,18 +108,19 @@ bool run_negative_test() {
     B_row.all_row = { {0, 3}, {-1, -1}, {2, 2} };
     Column_Major_Matrix<int> B = B_row;
 
-    // 預期結果手動計算：
-    // Row0, Col0: 0*0 + (-2)*(-1) + 1000*2 = 0 + 2 + 2000 = 2002
+    // 預期結果計算：
+    // Row0, Col0: 0*0 + (-2)*(-1) + 1000*2 = 2002
     // Row0, Col1: 同上 = 2002
     // Row1, Col0: 5*0 + 0*(-1) + 1*2 = 2
-    // Row1, Col1: 5*3 + 0*(-1) + 1*2 = 15+2 = 17
+    // Row1, Col1: 5*3 + 0*(-1) + 1*2 = 17
     Row_Major_Matrix<int> expected(2, 2);
     expected.all_row = { {2002, 2002}, {2, 17} };
 
     auto result_single = A * B;
     auto result_multi = A % B;
 
-    bool pass = check_equal(result_single, expected) && check_equal(result_multi, expected);
+    bool pass = check_equal(result_single, expected) &&
+                check_equal(result_multi, expected);
     std::cout << (pass ? "Negative/zero test PASS\n" : "Negative/zero test FAIL\n");
     return pass;
 }
@@ -138,32 +136,32 @@ bool run_non_square_test() {
     Column_Major_Matrix<int> B = B_row;
 
     // 預期結果：
-    // Row0: [1*7+2*11, 1*8+2*12, 1*9+2*13, 1*10+2*14] = [29,32,35,38]
-    // Row1: [3*7+4*11, 3*8+4*12, 3*9+4*13, 3*10+4*14] = [65,72,79,86]
-    // Row2: [5*7+6*11, 5*8+6*12, 5*9+6*13, 5*10+6*14] = [101,112,123,134]
+    // Row0: [29, 32, 35, 38]
+    // Row1: [65, 72, 79, 86]
+    // Row2: [101,112,123,134]
     Row_Major_Matrix<int> expected(3, 4);
-    expected.all_row = { {29, 32, 35, 38},
-                         {65, 72, 79, 86},
-                         {101,112,123,134} };
+    expected.all_row = {
+        {29, 32, 35, 38},
+        {65, 72, 79, 86},
+        {101,112,123,134}
+    };
 
     auto result_single = A * B;
     auto result_multi = A % B;
 
-    bool pass = check_equal(result_single, expected) && check_equal(result_multi, expected);
+    bool pass = check_equal(result_single, expected) &&
+                check_equal(result_multi, expected);
     std::cout << (pass ? "Non-square test PASS\n" : "Non-square test FAIL\n");
     return pass;
 }
 
-// (4) 檔案測試：使用大矩陣檔案進行乘法，並比對單執行緒與多執行緒結果
+// (4) 檔案測試：使用大矩陣檔案進行乘法，比對單、多執行緒結果
 bool run_file_test() {
     std::cout << "Running file-based large matrix test...\n";
-    // 設定檔案完整路徑
-    std::string fileA = DATA_DIR + "large_A.txt";
-    std::string fileB = DATA_DIR + "large_B.txt";
+    std::string fileA = "../data/large_A.txt";
+    std::string fileB = "../data/large_B.txt";
 
-    // 若檔案不存在則自動建立
     if (!file_exists(fileA)) {
-        // 產生一個 50x60 的矩陣，數值採用連續整數
         int rows = 50, cols = 60;
         std::ostringstream oss;
         oss << rows << " " << cols << "\n";
@@ -176,7 +174,6 @@ bool run_file_test() {
         std::cout << "Generated " << fileA << "\n";
     }
     if (!file_exists(fileB)) {
-        // 產生一個 60x40 的矩陣
         int rows = 60, cols = 40;
         std::ostringstream oss;
         oss << rows << " " << cols << "\n";
@@ -189,7 +186,6 @@ bool run_file_test() {
         std::cout << "Generated " << fileB << "\n";
     }
 
-    // 讀入檔案中的資料
     Row_Major_Matrix<int> A = load_matrix_txt(fileA);
     Row_Major_Matrix<int> B_row = load_matrix_txt(fileB);
     Column_Major_Matrix<int> B = B_row;
@@ -203,15 +199,165 @@ bool run_file_test() {
 }
 
 //====================================================
-// 5. 主程式：依序執行所有測試案例
+// 5. Int4 版本測試案例
+
+// (5a) Int4 Fixed 測試：使用固定 2x2 數值（均小於8，不涉及負數）
+bool run_int4_fixed_test() {
+    std::cout << "Running int4 fixed 2x2 test...\n";
+    int a_rows = 2, a_cols = 2, b_rows = 2, b_cols = 2;
+    PackedInt4Matrix A4(a_rows, a_cols);
+    PackedInt4Matrix B4(b_rows, b_cols);
+    
+    // 設定 A4: [ [1, 2], [3, 4] ]
+    A4.set(0, 0, 1);
+    A4.set(0, 1, 2);
+    A4.set(1, 0, 3);
+    A4.set(1, 1, 4);
+    
+    // 設定 B4: [ [5, 6], [7, 0] ]
+    B4.set(0, 0, 5);
+    B4.set(0, 1, 6);
+    B4.set(1, 0, 7);
+    B4.set(1, 1, 0);
+    
+    auto A4_unpacked = A4.to_row_major<int>(1.0f, 0.0f);
+    auto B4_unpacked = B4.to_col_major<int>(1.0f, 0.0f);
+    
+    auto result_single = A4_unpacked * B4_unpacked;
+    auto result_multi = A4_unpacked % B4_unpacked;
+    
+    // 預期結果：
+    // [ 1*5+2*7, 1*6+2*0 ] = [19, 6]
+    // [ 3*5+4*7, 3*6+4*0 ] = [43, 18]
+    Row_Major_Matrix<int> expected(2, 2);
+    expected.all_row = { {19, 6}, {43, 18} };
+    
+    bool pass = check_equal(result_single, expected) &&
+                check_equal(result_multi, expected);
+    std::cout << (pass ? "Int4 fixed test PASS\n" : "Int4 fixed test FAIL\n");
+    return pass;
+}
+
+// (5b) Int4 Boundary 測試：檢查邊界數值轉換與運算
+bool run_int4_boundary_test() {
+    std::cout << "Running int4 boundary 2x2 test...\n";
+    int a_rows = 2, a_cols = 2;
+    int b_rows = a_cols, b_cols = 2;
+    PackedInt4Matrix A4(a_rows, a_cols);
+    PackedInt4Matrix B4(b_rows, b_cols);
+    
+    // 設定邊界值：
+    // 使用數值: 7, 8, 0, 15
+    // 解量化後：7 -> 7, 8 -> (8-16) = -8, 0 -> 0, 15 -> (15-16) = -1
+    A4.set(0, 0, 7);
+    A4.set(0, 1, 8);
+    A4.set(1, 0, 0);
+    A4.set(1, 1, 15);
+    
+    // 為 B4 同樣設定相同邊界數值
+    B4.set(0, 0, 7);
+    B4.set(0, 1, 8);
+    B4.set(1, 0, 0);
+    B4.set(1, 1, 15);
+    
+    auto A4_unpacked = A4.to_row_major<int>(1.0f, 0.0f);
+    auto B4_unpacked = B4.to_col_major<int>(1.0f, 0.0f);
+    
+    auto result_single = A4_unpacked * B4_unpacked;
+    auto result_multi = A4_unpacked % B4_unpacked;
+    
+    // 解量化後矩陣為：
+    // [ [7, -8],
+    //   [0, -1] ]
+    // 乘法結果：
+    // [0,0]: 7*7 + (-8)*0 = 49
+    // [0,1]: 7*(-8) + (-8)*(-1) = -56 + 8 = -48
+    // [1,0]: 0*7 + (-1)*0 = 0
+    // [1,1]: 0*(-8) + (-1)*(-1) = 1
+    Row_Major_Matrix<int> expected(2, 2);
+    expected.all_row = { {49, -48}, {0, 1} };
+    
+    bool pass = check_equal(result_single, expected) &&
+                check_equal(result_multi, expected);
+    std::cout << (pass ? "Int4 boundary test PASS\n" : "Int4 boundary test FAIL\n");
+    return pass;
+}
+
+// (5c) Int4 Dimension 測試：非方陣
+bool run_int4_dimension_test() {
+    std::cout << "Running int4 non-square test...\n";
+    // A4: 3x2, B4: 2x4 (固定數值均小於8，無負轉換)
+    int a_rows = 3, a_cols = 2, b_rows = 2, b_cols = 4;
+    PackedInt4Matrix A4(a_rows, a_cols);
+    PackedInt4Matrix B4(b_rows, b_cols);
+    
+    // 設定 A4 為：
+    // [ [1, 2],
+    //   [3, 4],
+    //   [5, 6] ]
+    A4.set(0, 0, 1); A4.set(0, 1, 2);
+    A4.set(1, 0, 3); A4.set(1, 1, 4);
+    A4.set(2, 0, 5); A4.set(2, 1, 6);
+    
+    // 設定 B4 為：
+    // [ [7, 8, 9, 10],
+    //   [11, 12, 13, 14] ]
+    B4.set(0, 0, 7);  B4.set(0, 1, 8);
+    B4.set(0, 2, 9);  B4.set(0, 3, 10);
+    B4.set(1, 0, 11); B4.set(1, 1, 12);
+    B4.set(1, 2, 13); B4.set(1, 3, 14);
+    
+    auto A4_unpacked = A4.to_row_major<int>(1.0f, 0.0f);
+    auto B4_unpacked = B4.to_col_major<int>(1.0f, 0.0f);
+    
+    auto result_single = A4_unpacked * B4_unpacked;
+    auto result_multi = A4_unpacked % B4_unpacked;
+    
+    // 正確的預期結果（依據 int4 轉換後的實際數值計算）：
+    // A4 (unchanged): [ [1,2], [3,4], [5,6] ]
+    // B4 解量化後：
+    // 第一列： 7, (8->-8), (9->-7), (10->-6)
+    // 第二列: (11->-5), (12->-4), (13->-3), (14->-2)
+    // 計算得到：
+    // Row0: [ 1*7 + 2*(-5) = -3,
+    //         1*(-8) + 2*(-4) = -16,
+    //         1*(-7) + 2*(-3) = -13,
+    //         1*(-6) + 2*(-2) = -10 ]
+    // Row1: [ 3*7 + 4*(-5) = 1,
+    //         3*(-8) + 4*(-4) = -40,
+    //         3*(-7) + 4*(-3) = -33,
+    //         3*(-6) + 4*(-2) = -26 ]
+    // Row2: [ 5*7 + 6*(-5) = 5,
+    //         5*(-8) + 6*(-4) = -64,
+    //         5*(-7) + 6*(-3) = -53,
+    //         5*(-6) + 6*(-2) = -42 ]
+    Row_Major_Matrix<int> expected(3, 4);
+    expected.all_row = {
+        { -3, -16, -13, -10 },
+        {  1, -40, -33, -26 },
+        {  5, -64, -53, -42 }
+    };
+    
+    bool pass = check_equal(result_single, expected) &&
+                check_equal(result_multi, expected);
+    std::cout << (pass ? "Int4 non-square test PASS\n" : "Int4 non-square test FAIL\n");
+    return pass;
+}
+
+//====================================================
+// 6. 主程式：依序執行所有測試案例
 int main() {
     int pass_count = 0;
-    const int total_tests = 4;
+    // 原有 4 測試 + 3 int4 測試 = 7 測試案例
+    const int total_tests = 7;
 
     if (run_basic_test())         ++pass_count;
     if (run_negative_test())      ++pass_count;
     if (run_non_square_test())    ++pass_count;
     if (run_file_test())          ++pass_count;
+    if (run_int4_fixed_test())    ++pass_count;
+    if (run_int4_boundary_test()) ++pass_count;
+    if (run_int4_dimension_test())++pass_count;
 
     std::cout << "\nTotal: " << pass_count << " / " << total_tests << " tests passed.\n";
     return (pass_count == total_tests) ? 0 : 1;

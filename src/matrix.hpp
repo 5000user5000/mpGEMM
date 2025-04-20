@@ -1,85 +1,45 @@
-#ifndef MATRIX_HPP
-#define MATRIX_HPP
-
+#pragma once
 #include <vector>
-#include <stdexcept>
-#include <cstdint>
-#include <iostream>
+#include <cstddef>
+#include "layout_policies.hpp"
+#include "storage_policies.hpp"
 
-
-
-
-template <typename T>
-class Column_Major_Matrix;  // Forward declaration
-
-template <typename T>
-class Row_Major_Matrix {
+template<
+    typename T,                              // logical element type
+    typename LayoutPolicy    = RowMajor,     
+    typename StoragePolicy   = PlainStorage<T>  
+>
+class Matrix {
 public:
-    std::vector<std::vector<T>> all_row;
+    using StorageType = typename StoragePolicy::StorageType;
+    static constexpr size_t EPU = StoragePolicy::entries_per_unit;
 
-    Row_Major_Matrix(int rows, int cols);
-
-    Row_Major_Matrix(const Row_Major_Matrix& other);
-    Row_Major_Matrix& operator=(const Row_Major_Matrix& other);
-    Row_Major_Matrix(Row_Major_Matrix&& other) noexcept;
-    Row_Major_Matrix& operator=(Row_Major_Matrix&& other) noexcept;
-
-    // Fill the matrix with random values
-    void fill_random();
-
-    void print() const;
-
-    void set(int i, int j, T val) {
-        all_row[i][j] = val;
+    Matrix(size_t rows, size_t cols)
+      : rows_(rows), cols_(cols)
+    {
+        size_t total_elems = rows * cols;
+        size_t total_units = (total_elems + EPU - 1) / EPU;
+        data_.resize(total_units);
     }
 
-    // Getter / Setter: Access by row
-    std::vector<T> getRow(int index) const;
-    void setRow(int index, const std::vector<T>& row);
-
-    // Matrix multiplication: Single-threaded
-    Row_Major_Matrix operator*(const Column_Major_Matrix<T>& cm) const;
-
-    // Matrix multiplication: Multi-threaded
-    Row_Major_Matrix operator%(const Column_Major_Matrix<T>& cm) const;
-
-    // Type conversion to Column_Major_Matrix
-    operator Column_Major_Matrix<T>() const;
-};
-
-template <typename T>
-class Column_Major_Matrix {
-public:
-    std::vector<std::vector<T>> all_column;
-
-    Column_Major_Matrix(int rows, int cols);
-    
-    Column_Major_Matrix(const Column_Major_Matrix& other);
-    Column_Major_Matrix& operator=(const Column_Major_Matrix& other);
-    Column_Major_Matrix(Column_Major_Matrix&& other) noexcept;
-    Column_Major_Matrix& operator=(Column_Major_Matrix&& other) noexcept;
-
-    // Fill the matrix with random values
-    void fill_random();
-
-    // Print the matrix
-    void print() const;
-
-    void set(int i, int j, T val) {
-        all_column[j][i] = val;
+    T at(size_t r, size_t c) const {
+        size_t lin = LayoutPolicy::index(r, c, rows_, cols_);
+        size_t unit_idx = lin / EPU;
+        size_t offset   = lin % EPU;
+        return StoragePolicy::get(data_[unit_idx], offset);
     }
 
-    // Getter / Setter: Access by column
-    std::vector<T> getColumn(int index) const;
-    void setColumn(int index, const std::vector<T>& column);
+    void set(size_t r, size_t c, T value) {
+        size_t lin = LayoutPolicy::index(r, c, rows_, cols_);
+        size_t unit_idx = lin / EPU;
+        size_t offset   = lin % EPU;
+        StoragePolicy::set(data_[unit_idx], value, offset);
+    }
 
-    // Matrix multiplication: Single-threaded
-    Column_Major_Matrix operator*(const Row_Major_Matrix<T>& rm) const;
-    // Matrix multiplication: Multi-threaded (using 10 threads and printing the time taken)
-    Column_Major_Matrix operator%(const Row_Major_Matrix<T>& rm) const;
+    size_t rows() const { return rows_; }
+    size_t cols() const { return cols_; }
 
-    // Type conversion to Row_Major_Matrix
-    operator Row_Major_Matrix<T>() const;
+private:
+    size_t rows_, cols_;
+    std::vector<StorageType> data_;
 };
-
-#endif // MATRIX_HPP

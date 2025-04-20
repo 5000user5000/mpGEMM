@@ -1,40 +1,46 @@
-CXX := g++
-CXXFLAGS := -std=c++17 -O2 -Wall -Wextra
+CXX        := g++
+CXXFLAGS   := -std=c++17 -O2 -Wall -I./src
 
-SRC_DIR := src
-TEST_DIR := tests
-BUILD_DIR := build
-DATA_DIR := ../data
+SRC_DIR    := src
+TEST_DIR   := tests
+BUILD_DIR  := build
 
-# main test file
-TARGET := $(BUILD_DIR)/main
-SRC := $(SRC_DIR)/matrix.cpp  $(SRC_DIR)/matrix_packed.cpp  $(TEST_DIR)/main.cpp
+# main test
+TEST_SRC       := $(TEST_DIR)/main.cpp
+TARGET_MAIN    := $(BUILD_DIR)/main
 
-# correctness test file
-TEST_TARGET := $(BUILD_DIR)/test_correctness
-TEST_SRC := $(SRC_DIR)/matrix.cpp $(SRC_DIR)/matrix_packed.cpp $(TEST_DIR)/test_correctness.cpp
+# correctness suite
+CORR_SRC       := $(TEST_DIR)/test_correctness.cpp   # fix filename
+TARGET_CORR    := $(BUILD_DIR)/test_correctness       # fix binary name
 
+HEADERS    := \
+    $(SRC_DIR)/layout_policies.hpp \
+    $(SRC_DIR)/storage_policies.hpp \
+    $(SRC_DIR)/matrix.hpp \
+    $(SRC_DIR)/matrix_ops.hpp \
+    $(SRC_DIR)/lut_utils.hpp
 
-all: $(TARGET) $(TEST_TARGET)
+.PHONY: all run test clean
 
-$(TARGET): $(SRC)
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -o $@ $(SRC)
+all: $(BUILD_DIR) $(TARGET_MAIN) $(TARGET_CORR)
 
-$(TEST_TARGET): $(TEST_SRC)
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -o $@ $(TEST_SRC) -lpthread
+# ensure build directory exists
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
-# 建立數據檔資料夾（../data），如果尚未存在的話
-$(DATA_DIR):
-	mkdir -p $(DATA_DIR)
+# build main
+$(TARGET_MAIN): $(TEST_SRC) $(HEADERS)
+	$(CXX) $(CXXFLAGS) $(TEST_SRC) -o $(TARGET_MAIN)
 
-run: $(TARGET)
-	./$(TARGET)
+# build correctness suite
+$(TARGET_CORR): $(CORR_SRC) $(HEADERS)
+	$(CXX) $(CXXFLAGS) $(CORR_SRC) -o $(TARGET_CORR)
 
-# 執行正確性測試，並確保 ../data 資料夾存在
-test: $(TEST_TARGET) $(DATA_DIR)
-	./$(TEST_TARGET)
+run: all
+	./$(TARGET_MAIN)
+
+test: $(TARGET_CORR)
+	./$(TARGET_CORR)
 
 clean:
 	rm -rf $(BUILD_DIR)

@@ -16,8 +16,10 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
 os.chdir(PROJECT_ROOT)
 
 # regex 抓時間
-PATTERN_INT = r"INT Process took ([\d.]+) ms"
-PATTERN_INT4 = r"INT4 Process took ([\d.]+) ms"
+# PATTERN_INT = r"INT Process took ([\d.]+) ms"
+# PATTERN_INT4 = r"INT4 Process took ([\d.]+) ms"
+PATTERN_INT = r"Naive int GEMM: ([\d.]+) ms"
+PATTERN_INT4 = r"SIMD‑LUT GEMM: ([\d.]+) ms"
 
 int_times = []
 int4_times = []

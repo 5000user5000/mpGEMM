@@ -9,101 +9,71 @@
 #include <random>
 
 int main() {
-    // configure matrix dimensions
-    const int A_ROWS = 200, A_COLS = 300;
-    const int B_ROWS = 300, B_COLS = 200;
+    // matrix dims
+    constexpr int M = 200, K = 300, N = 200;
 
-    // prepare random generators
+    // rnd generators
     std::mt19937 rng(12345);
     std::uniform_int_distribution<int> dist_int(0, 100);
-    std::uniform_int_distribution<int> dist_int4(0, 15);
 
-    // ==== Test with plain int ====
-    std::cout << "==== Test with int ====" << std::endl;
-    using IntMatR = Matrix<int, RowMajor, PlainStorage<int>>;
-    using IntMatC = Matrix<int, ColMajor, PlainStorage<int>>;
-    IntMatR A_i(A_ROWS, A_COLS);
-    IntMatC B_i(B_ROWS, B_COLS);
+    // === baseline int (naive) ===
+    std::cout << "==== Baseline (int, naive) ====\n";
+    using IntR = Matrix<int, RowMajor, PlainStorage<int>>;
+    using IntC = Matrix<int, ColMajor, PlainStorage<int>>;
 
-    // fill A_i and B_i with random ints
-    for (int i = 0; i < A_ROWS; ++i)
-        for (int j = 0; j < A_COLS; ++j)
-            A_i.set(i, j, dist_int(rng));
-    for (int i = 0; i < B_ROWS; ++i)
-        for (int j = 0; j < B_COLS; ++j)
-            B_i.set(i, j, dist_int(rng));
+    IntR A_i(M, K);
+    IntC B_i(K, N);
+    for (int i=0;i<M;++i)
+        for (int k=0;k<K;++k)
+            A_i.set(i,k, dist_int(rng));
+    for (int k=0;k<K;++k)
+        for (int j=0;j<N;++j)
+            B_i.set(k,j, dist_int(rng));
 
-    // time naive int GEMM
     auto t0 = std::chrono::high_resolution_clock::now();
     auto C_i = matmul(A_i, B_i);
     auto t1 = std::chrono::high_resolution_clock::now();
-    double dt_i = std::chrono::duration<double, std::milli>(t1 - t0).count();
-    std::cout << "INT Process took " << dt_i << " ms\n\n";
+    std::cout << "Naive int GEMM: "
+              << std::chrono::duration<double,std::milli>(t1-t0).count()
+              << " ms\n\n";
 
-    // ==== Test with Int4 + Elementwise LUT ====
-    std::cout << "==== Test with Int4 + Elementwise LUT ====" << std::endl;
-    using Int4MatR = Matrix<uint8_t, RowMajor, Int4Storage>;
-    using Int4MatC = Matrix<uint8_t, ColMajor, Int4Storage>;
-    Int4MatR A4(A_ROWS, A_COLS);
-    Int4MatC B4(B_ROWS, B_COLS);
+    // === Int4 packed test (derived from baseline int) ===
+    std::cout << "==== Int4 packed (SIMD LUT) ====\n";
+    using Int4R = Matrix<uint8_t, RowMajor, Int4Storage>;
+    using Int4C = Matrix<uint8_t, ColMajor, Int4Storage>;
+    Int4R A4(M, K);
+    Int4C B4(K, N);
 
-    // fill A4 and B4 with random Int4 values (0–15)
-    for (int i = 0; i < A_ROWS; ++i)
-        for (int j = 0; j < A_COLS; ++j)
-            A4.set(i, j, dist_int4(rng));
-    for (int i = 0; i < B_ROWS; ++i)
-        for (int j = 0; j < B_COLS; ++j)
-            B4.set(i, j, dist_int4(rng));
+    // take lower 4‑bits of baseline int matrices so data is correlated
+    for (int i = 0; i < M; ++i)
+        for (int k = 0; k < K; ++k) {
+            uint8_t q = static_cast<uint8_t>(A_i.at(i, k) & 0x0F);
+            A4.set(i, k, q);
+        }
+    for (int k = 0; k < K; ++k)
+        for (int j = 0; j < N; ++j) {
+            uint8_t q = static_cast<uint8_t>(B_i.at(k, j) & 0x0F);
+            B4.set(k, j, q);
+        }
 
-    // unpack to plain int for baseline
-    IntMatR A4_u(A_ROWS, A_COLS), B4_u(B_ROWS, B_COLS);
-    for (int i = 0; i < A_ROWS; ++i)
-        for (int j = 0; j < A_COLS; ++j)
-            A4_u.set(i, j, A4.at(i, j));
-    for (int i = 0; i < B_ROWS; ++i)
-        for (int j = 0; j < B_COLS; ++j)
-            B4_u.set(i, j, B4.at(i, j));
+    // --- unpack once ---
+    auto Au = unpack_int4(A4);
+    auto Bu = unpack_int4(B4);
 
-    // compute naive GEMM on unpacked matrices
-    auto C4_naive = matmul(A4_u, B4_u);
+    ProductLookupTable<uint8_t,uint8_t,int32_t> lut(16,16);
 
-    // build lookup table for weight range [0,16) and activation range [0,16)
-    ProductLookupTable<uint8_t, uint8_t> lut(16, 16);
-
-    // time LUT-based GEMM directly on packed matrices
+    // scalar (if compiled w/o AVX2) or SIMD depending on flag
     auto t2 = std::chrono::high_resolution_clock::now();
-    IntMatR C4_lut(A_ROWS, B_COLS);
-    for (int i = 0; i < A_ROWS; ++i) {
-        for (int j = 0; j < B_COLS; ++j) {
-            int sum = 0;
-            for (int k = 0; k < A_COLS; ++k) {
-                uint8_t w = A4.at(i, k);
-                uint8_t a = B4.at(k, j);
-                sum += lut.get(w, a);
-            }
-            C4_lut.set(i, j, sum);
-        }
-    }
+    auto C_fast = matmul_lut_fast(Au, Bu, M, K, N, lut);
     auto t3 = std::chrono::high_resolution_clock::now();
-    double dt4 = std::chrono::duration<double, std::milli>(t3 - t2).count();
-    std::cout << "Int4 LUT Process took " << dt4 << " ms" << std::endl;
 
-    // verify correctness
-    bool ok = true;
-    for (int i = 0; i < A_ROWS && ok; ++i) {
-        for (int j = 0; j < B_COLS; ++j) {
-            if (C4_naive.at(i, j) != C4_lut.at(i, j)) {
-                ok = false;
-                std::cout << "Mismatch at (" << i << "," << j << "): "
-                          << C4_naive.at(i, j) << " vs "
-                          << C4_lut.at(i, j) << std::endl;
-            }
-        }
-    }
-    std::cout << (ok
-                       ? "✅ LUT matches naive"
-                       : "❌ LUT mismatch")
-              << std::endl;
+#if defined(__AVX2__)
+    std::cout << "LUT GEMM (AVX2): ";
+#else
+    std::cout << "LUT GEMM (scalar): ";
+#endif
+    std::cout << std::chrono::duration<double,std::milli>(t3-t2).count()
+              << " ms\n";
 
     return 0;
 }

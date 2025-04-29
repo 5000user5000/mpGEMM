@@ -213,9 +213,42 @@ bool run_int4_int32_test() {
     return pass;
 }
 
+// 6. Int4 fast lut test
+bool run_int4_fast_test(){
+    std::cout << "Running Int4 fast‑kernel test...\n";
+    constexpr int M=4,K=5,N=3;
+
+    using Mat4R = Matrix<uint8_t, RowMajor, Int4Storage>;
+    using Mat4C = Matrix<uint8_t, ColMajor, Int4Storage>;
+
+    std::mt19937 rng(42);
+    std::uniform_int_distribution<int> d4(0,15);
+
+    Mat4R A4(M,K); Mat4C B4(K,N);
+    for(int i=0;i<M;++i) for(int k=0;k<K;++k) A4.set(i,k,d4(rng));
+    for(int k=0;k<K;++k) for(int j=0;j<N;++j) B4.set(k,j,d4(rng));
+
+    // reference: unpack -> naive matmul
+    auto Au = unpack_int4(A4);
+    auto Bu = unpack_int4(B4);
+    Matrix<int,RowMajor,PlainStorage<int>> Au_mat(M,K), Bu_mat(K,N);
+    for(int i=0;i<M;++i) for(int k=0;k<K;++k) Au_mat.set(i,k,Au[i*K+k]);
+    for(int k=0;k<K;++k) for(int j=0;j<N;++j) Bu_mat.set(k,j,Bu[k*N+j]);
+    auto C_ref = matmul(Au_mat,Bu_mat);
+
+    // LUT fast kernel
+    ProductLookupTable<uint8_t,uint8_t,int32_t> lut(16,16);
+    auto C_fast = matmul_lut_fast(Au,Bu,M,K,N,lut);
+
+    bool pass = check_equal(C_ref,C_fast);
+    std::cout << (pass?"PASS":"FAIL") << "\n";
+    return pass;
+}
+
+
 int main() {
     int passed=0;
-    const int total=8;
+    const int total=9;
     if (run_basic_test()) ++passed;
     if (run_negative_test()) ++passed;
     if (run_non_square_test()) ++passed;
@@ -224,6 +257,7 @@ int main() {
     if (run_int4_dimension_test()) ++passed;
     if (run_int4_int16_test()) ++passed;
     if (run_int4_int32_test()) ++passed;
+    if(run_int4_fast_test()) ++passed;
     std::cout << "\nTotal: " << passed << "/" << total << " tests passed.\n";
     return (passed == total ? 0 : 1);
 }

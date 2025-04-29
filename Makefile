@@ -1,5 +1,5 @@
 CXX        := g++
-CXXFLAGS   := -std=c++17 -O2 -Wall -I./src
+CXXFLAGS   := -std=c++17 -O2 -Wall -I./src -march=native
 
 SRC_DIR    := src
 TEST_DIR   := tests

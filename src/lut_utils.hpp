@@ -3,35 +3,48 @@
 #include <cstddef>
 #include <type_traits>
 
-// ProductLookupTable: precomputes multiplication results for two ranges
-// W: weight input type, A: activation input type, P: product type (common type)
-template<typename W, typename A,
-         typename P = std::common_type_t<W, A>>
+// =============================================================
+//  ProductLookupTable  —  unified flat-storage LUT
+//  -------------------------------------------------------------
+//  * 只保留 **1‑D 連續記憶體 (table_)**，節省空間。
+//  * 提供 get(w,a) 與 operator()(w,a) => 易用的 2‑D 介面。
+//  * 內建 row‑stride() 方便 SIMD 計算線性 index。
+//  * 同時暴露 data() 讓外部 SIMD kernel 直接 gather。
+// =============================================================
+
+template <typename W, typename A,
+          typename P = std::common_type_t<W, A>>
 class ProductLookupTable {
 public:
     using WeightType     = W;
     using ActivationType = A;
     using ProductType    = P;
 
-    // Construct a lookup table of size [w_range][a_range]
-    ProductLookupTable(std::size_t w_range, std::size_t a_range) {
-        table_.assign(w_range, std::vector<ProductType>(a_range));
-        for (std::size_t i = 0; i < w_range; ++i) {
-            for (std::size_t j = 0; j < a_range; ++j) {
-                table_[i][j] = static_cast<ProductType>(i) * static_cast<ProductType>(j);
-            }
-        }
+    ProductLookupTable(std::size_t w_range, std::size_t a_range)
+        : w_range_(w_range), a_range_(a_range), table_(w_range * a_range)
+    {
+        for (std::size_t w = 0; w < w_range_; ++w)
+            for (std::size_t a = 0; a < a_range_; ++a)
+                table_[w * a_range_ + a] =
+                    static_cast<ProductType>(w) * static_cast<ProductType>(a);
     }
 
-    // Retrieve precomputed product for weight w and activation a
-    ProductType get(WeightType w, ActivationType a) const {
-        return table_[static_cast<std::size_t>(w)]
-                     [static_cast<std::size_t>(a)];
+    // ---- scalar accessors ----
+    inline ProductType get(WeightType w, ActivationType a) const noexcept {
+        return table_[static_cast<std::size_t>(w) * a_range_ + static_cast<std::size_t>(a)];
+    }
+    inline ProductType operator()(WeightType w, ActivationType a) const noexcept {
+        return get(w, a);
     }
 
-    std::size_t weight_range()     const { return table_.size(); }
-    std::size_t activation_range() const { return table_.empty() ? 0 : table_[0].size(); }
+    // ---- helpers ----
+    const ProductType* data()   const noexcept { return table_.data(); }
+    std::size_t        row_stride() const noexcept { return a_range_; }
+    std::size_t        weight_range() const noexcept { return w_range_; }
+    std::size_t        activation_range() const noexcept { return a_range_; }
 
 private:
-    std::vector<std::vector<ProductType>> table_;
+    std::size_t              w_range_;
+    std::size_t              a_range_;
+    std::vector<ProductType> table_;   // flat buffer (w * a_range + a)
 };

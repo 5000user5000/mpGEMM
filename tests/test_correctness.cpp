@@ -213,9 +213,37 @@ bool run_int4_int32_test() {
     return pass;
 }
 
+bool run_int4_simd_test(){
+    std::cout << "Running int4 SIMD LUT test...\n";
+    using A4Mat = Matrix<uint8_t, RowMajor, Int4Storage>;
+    const int M=4, K=5, N=3;
+
+    std::mt19937 rng(42);
+    std::uniform_int_distribution<int> d4(0,15);
+
+    A4Mat A(M,K); A4Mat B(K,N);
+    for(int i=0;i<M;++i) for(int k=0;k<K;++k) A.set(i,k,d4(rng));
+    for(int k=0;k<K;++k) for(int j=0;j<N;++j) B.set(k,j,d4(rng));
+
+    // baseline: unpack then naive
+    Matrix<int, RowMajor, PlainStorage<int>> Au(M,K), Bu(K,N);
+    for(int i=0;i<M;++i) for(int k=0;k<K;++k) Au.set(i,k,A.at(i,k));
+    for(int k=0;k<K;++k) for(int j=0;j<N;++j) Bu.set(k,j,B.at(k,j));
+    auto C_ref = matmul(Au,Bu);
+
+    // LUT + (可能)SIMD 版本
+    ProductLookupTable<uint8_t,uint8_t,int32_t> lut(16,16);
+    auto C_lut = matmul_lut(A,B,lut);
+
+    bool pass = check_equal(C_ref,C_lut);
+    std::cout << (pass?"Int4 SIMD LUT test PASS\n":"Int4 SIMD LUT test FAIL\n");
+    return pass;
+}
+
+
 int main() {
     int passed=0;
-    const int total=8;
+    const int total=9;
     if (run_basic_test()) ++passed;
     if (run_negative_test()) ++passed;
     if (run_non_square_test()) ++passed;
@@ -224,6 +252,7 @@ int main() {
     if (run_int4_dimension_test()) ++passed;
     if (run_int4_int16_test()) ++passed;
     if (run_int4_int32_test()) ++passed;
+    if(run_int4_simd_test()) ++passed;
     std::cout << "\nTotal: " << passed << "/" << total << " tests passed.\n";
     return (passed == total ? 0 : 1);
 }

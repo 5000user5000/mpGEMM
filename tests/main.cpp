@@ -62,6 +62,11 @@ int main() {
 
     ProductLookupTable<uint8_t,uint8_t,int32_t> lut(16,16);
 
+    // lut size and shape
+    std::cout << "> LUT size: " << lut.lut_size_bytes() << " bytes\n";
+    std::cout << "> LUT Shape: (" << lut.weight_range()
+          << ", " << lut.activation_range() << ")\n";
+
     // scalar (if compiled w/o AVX2) or SIMD depending on flag
     auto t2 = std::chrono::high_resolution_clock::now();
     auto C_fast = matmul_lut_fast(Au, Bu, M, K, N, lut);

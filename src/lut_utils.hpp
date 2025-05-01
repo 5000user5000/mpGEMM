@@ -42,6 +42,7 @@ public:
     std::size_t        row_stride() const noexcept { return a_range_; }
     std::size_t        weight_range() const noexcept { return w_range_; }
     std::size_t        activation_range() const noexcept { return a_range_; }
+    std::size_t lut_size_bytes() const noexcept { return table_.size() * sizeof(ProductType);}
 
 private:
     std::size_t              w_range_;

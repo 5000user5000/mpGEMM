@@ -3,6 +3,7 @@
 #include "../src/matrix.hpp"
 #include "../src/matrix_ops.hpp"
 #include "../src/lut_utils.hpp"
+#include "../src/quant_utils.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -246,9 +247,24 @@ bool run_int4_fast_test(){
 }
 
 
+// 7. Quantization/Dequantization test
+bool run_quant_dequant_test() {
+    std::cout << "Running INT4 quant-dequant test...\n";
+    float scale = 0.25f;       // 假設
+    bool pass = true;
+    for (float v : {0.0f, 1.0f, 2.25f, 3.5f}) {
+        uint8_t q = quantize_int4(v, scale);
+        float   d = dequantize_int4(q, scale);
+        if (std::abs(d - std::round(v/scale)*scale) > 1e-3f) pass = false;
+    }
+    std::cout << (pass ? "Quant-Dequant test PASS\n" : "FAIL\n");
+    return pass;
+}
+
+
 int main() {
     int passed=0;
-    const int total=9;
+    const int total=10;
     if (run_basic_test()) ++passed;
     if (run_negative_test()) ++passed;
     if (run_non_square_test()) ++passed;
@@ -258,6 +274,7 @@ int main() {
     if (run_int4_int16_test()) ++passed;
     if (run_int4_int32_test()) ++passed;
     if(run_int4_fast_test()) ++passed;
+    if (run_quant_dequant_test()) ++passed;
     std::cout << "\nTotal: " << passed << "/" << total << " tests passed.\n";
     return (passed == total ? 0 : 1);
 }

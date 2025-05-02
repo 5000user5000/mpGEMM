@@ -10,13 +10,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install dependencies
+     # ---------- Install toolchain ----------
+      - name: Install compiler & deps
         run: sudo apt-get update && sudo apt-get install -y build-essential g++
 
-      - name: Build project
+      # ---------- Install Intel oneAPI MKL ----------
+      - name: Add Intel oneAPI apt repo
         run: |
-          make USE_MKL=1
+          wget -qO- https://apt.repos.intel.com/oneapi/gpgkey | sudo apt-key add -
+          echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneapi.list
+          sudo apt-get update
+          sudo apt-get install -y intel-oneapi-mkl-devel
 
+      # ---------- Export MKLROOT so Makefile can find it ----------
+      - name: Set MKLROOT env
+        run: echo "MKLROOT=/opt/intel/oneapi/mkl/latest" >> $GITHUB_ENV
+
+      # ---------- Build ----------
+      - name: Build project (MKL enabled)
+        run: make USE_MKL=1
+
+      # ---------- Run tests ----------
       - name: Run main test
         run: |
           make run

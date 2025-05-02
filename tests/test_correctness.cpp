@@ -287,7 +287,7 @@ bool run_mkl_test() {
 
 int main() {
     int passed=0;
-    const int total=10;
+    int total=10;
     if (run_basic_test()) ++passed;
     if (run_negative_test()) ++passed;
     if (run_non_square_test()) ++passed;

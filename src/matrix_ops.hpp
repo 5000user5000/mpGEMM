@@ -107,3 +107,46 @@ auto matmul_lut_fast(const std::vector<uint8_t>& Au,
     }
     return C;
 }
+
+// =============================================================
+//  MKL GEMM (Intel MKL) — expects packed row-major matrices
+//  * A shape: M × K  contiguous
+//  * B shape: K × N  contiguous
+//  * C shape: M × N  contiguous
+//  * C is overwritten with the result
+// =============================================================
+
+
+#ifdef USE_MKL
+#include <mkl.h>
+
+template<typename T>
+Matrix<T> matmul_mkl(const Matrix<T>& A, const Matrix<T>& B) {
+    static_assert(std::is_same_v<T, float> || std::is_same_v<T, double>,
+                  "MKL only supports float/double GEMM with this wrapper");
+
+    Matrix<T> C(A.rows(), B.cols());
+
+    const CBLAS_LAYOUT layout = CblasRowMajor;
+    const CBLAS_TRANSPOSE trans = CblasNoTrans;
+
+    if constexpr (std::is_same_v<T, float>) {
+        cblas_sgemm(layout, trans, trans,
+                    A.rows(), B.cols(), A.cols(),
+                    1.0f,
+                    A.data(), A.cols(),
+                    B.data(), B.cols(),
+                    0.0f,
+                    C.data(), C.cols());
+    } else { // double
+        cblas_dgemm(layout, trans, trans,
+                    A.rows(), B.cols(), A.cols(),
+                    1.0,
+                    A.data(), A.cols(),
+                    B.data(), B.cols(),
+                    0.0,
+                    C.data(), C.cols());
+    }
+    return C;
+}
+#endif

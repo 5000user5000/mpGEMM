@@ -15,7 +15,7 @@ jobs:
 
       - name: Build project
         run: |
-          make
+          make USE_MKL=1
 
       - name: Run main test
         run: |

@@ -22,6 +22,7 @@ public:
         data_.resize(total_units);
     }
 
+    /* ------------ element access ------------ */
     T at(size_t r, size_t c) const {
         size_t lin = LayoutPolicy::index(r, c, rows_, cols_);
         size_t unit_idx = lin / EPU;
@@ -36,8 +37,29 @@ public:
         StoragePolicy::set(data_[unit_idx], value, offset);
     }
 
+    /* ------------ shape ------------ */
     size_t rows() const { return rows_; }
     size_t cols() const { return cols_; }
+
+    /* ------------ raw pointer (PlainStorage only) ------------ */
+    template<
+        typename U = StoragePolicy,
+        std::enable_if_t<
+            std::is_same_v<U, PlainStorage<T>> && U::entries_per_unit == 1,
+            int> = 0>
+    T* data() {                                   // non‑const
+        return reinterpret_cast<T*>(data_.data());
+    }
+
+    template<
+        typename U = StoragePolicy,
+        std::enable_if_t<
+            std::is_same_v<U, PlainStorage<T>> && U::entries_per_unit == 1,
+            int> = 0>
+    const T* data() const {                       // const
+        return reinterpret_cast<const T*>(data_.data());
+    }
+
 
 private:
     size_t rows_, cols_;

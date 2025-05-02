@@ -85,10 +85,9 @@ int main() {
     // === MKL float GEMM (row‑major) ===
     std::cout << "\n==== MKL (float) ====\n";
     using F32R = Matrix<float, RowMajor, PlainStorage<float>>;
-    using F32C = Matrix<float, ColMajor, PlainStorage<float>>;
 
     F32R A_f(M, K);
-    F32C B_f(K, N);
+    F32R B_f(K, N);
 
     // 將 int baseline 轉 float，方便對照
     for (int i=0;i<M;++i)

@@ -261,10 +261,33 @@ bool run_quant_dequant_test() {
     return pass;
 }
 
+// 8. MKL test
+#ifdef USE_MKL
+// 8. MKL test
+bool run_mkl_test() {
+    std::cout << "Running MKL test...\n";
+
+    Matrix<float, RowMajor, PlainStorage<float>> A(2,3), B(3,2);
+    for (int i=0; i<2; ++i) for (int j=0; j<3; ++j) A.set(i,j,i+j+1);
+    for (int i=0; i<3; ++i) for (int j=0; j<2; ++j) B.set(i,j,i+j+1);
+
+    auto C = matmul_mkl(A,B);
+
+    Matrix<float, RowMajor, PlainStorage<float>> expected(2,2);
+    expected.set(0,0,14); expected.set(0,1,20);
+    expected.set(1,0,20); expected.set(1,1,29);
+
+    bool pass = check_equal(C, expected);
+    std::cout << (pass ? "MKL test PASS\n" : "MKL test FAIL\n");
+    return pass;
+}
+#endif  // USE_MKL
+
+
 
 int main() {
     int passed=0;
-    const int total=10;
+    int total=10;
     if (run_basic_test()) ++passed;
     if (run_negative_test()) ++passed;
     if (run_non_square_test()) ++passed;
@@ -275,6 +298,10 @@ int main() {
     if (run_int4_int32_test()) ++passed;
     if(run_int4_fast_test()) ++passed;
     if (run_quant_dequant_test()) ++passed;
+    #ifdef USE_MKL
+        ++total;                  // 只有啟用 MKL 才加總數
+        if (run_mkl_test()) ++passed;
+    #endif
     std::cout << "\nTotal: " << passed << "/" << total << " tests passed.\n";
     return (passed == total ? 0 : 1);
 }

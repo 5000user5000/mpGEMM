@@ -11,11 +11,15 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential g++
+        run: |
+          sudo apt-get -q update
+          sudo apt-get -qy install \
+               build-essential g++ \
+               intel-mkl-full python3 python3-pytest
 
       - name: Build project
         run: |
-          make
+          make USE_MKL=1
 
       - name: Run main test
         run: |

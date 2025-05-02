@@ -1,6 +1,16 @@
 CXX        := g++
 CXXFLAGS   := -std=c++17 -O2 -Wall -I./src -march=native
 
+# ---- MKL toggle ----
+ifeq ($(USE_MKL),1)
+	MKL_INC := /usr/include/mkl
+	MKL_LIBDIR := /usr/lib/x86_64-linux-gnu
+	CXXFLAGS += -DUSE_MKL -I$(MKL_INC)
+	LDLIBS   += -Wl,--no-as-needed -L$(MKL_LIBDIR) -lmkl_rt -lpthread -lm -ldl
+endif
+# --------------------
+
+
 SRC_DIR    := src
 TEST_DIR   := tests
 BUILD_DIR  := build
@@ -30,11 +40,11 @@ $(BUILD_DIR):
 
 # build main
 $(TARGET_MAIN): $(TEST_SRC) $(HEADERS)
-	$(CXX) $(CXXFLAGS) $(TEST_SRC) -o $(TARGET_MAIN)
+	$(CXX) $(CXXFLAGS) $(TEST_SRC) -o $(TARGET_MAIN) $(LDFLAGS) $(LDLIBS)
 
 # build correctness suite
 $(TARGET_CORR): $(CORR_SRC) $(HEADERS)
-	$(CXX) $(CXXFLAGS) $(CORR_SRC) -o $(TARGET_CORR)
+	$(CXX) $(CXXFLAGS) $(CORR_SRC) -o $(TARGET_CORR) $(LDFLAGS) $(LDLIBS)
 
 run: all
 	./$(TARGET_MAIN)

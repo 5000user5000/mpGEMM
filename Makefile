@@ -3,9 +3,10 @@ CXXFLAGS   := -std=c++17 -O2 -Wall -I./src -march=native
 
 # ---- MKL toggle ----
 ifeq ($(USE_MKL),1)
-    CXXFLAGS += -DUSE_MKL -I$(MKLROOT)/include
-    LDFLAGS  += -L$(MKLROOT)/lib -Wl,--no-as-needed
-    LDLIBS   += -lmkl_rt
+	MKL_INC := /usr/include/mkl
+	MKL_LIBDIR := /usr/lib/x86_64-linux-gnu
+	CXXFLAGS += -DUSE_MKL -I$(MKL_INC)
+	LDLIBS   += -Wl,--no-as-needed -L$(MKL_LIBDIR) -lmkl_rt -lpthread -lm -ldl
 endif
 # --------------------
 

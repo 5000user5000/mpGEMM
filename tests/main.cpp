@@ -80,5 +80,34 @@ int main() {
     std::cout << std::chrono::duration<double,std::milli>(t3-t2).count()
               << " ms\n";
 
+
+#ifdef USE_MKL
+    // === MKL float GEMM (row‑major) ===
+    std::cout << "\n==== MKL (float) ====\n";
+    using F32R = Matrix<float, RowMajor, PlainStorage<float>>;
+    using F32C = Matrix<float, ColMajor, PlainStorage<float>>;
+
+    F32R A_f(M, K);
+    F32C B_f(K, N);
+
+    // 將 int baseline 轉 float，方便對照
+    for (int i=0;i<M;++i)
+        for (int k=0;k<K;++k)
+            A_f.set(i,k, static_cast<float>(A_i.at(i,k)));
+
+    for (int k=0;k<K;++k)
+        for (int j=0;j<N;++j)
+            B_f.set(k,j, static_cast<float>(B_i.at(k,j)));
+
+    auto t4 = std::chrono::high_resolution_clock::now();
+    auto C_mkl = matmul_mkl(A_f, B_f);
+    auto t5 = std::chrono::high_resolution_clock::now();
+
+    std::cout << "MKL sgemm: "
+            << std::chrono::duration<double,std::milli>(t5-t4).count()
+            << " ms\n";
+#endif
+          
+
     return 0;
 }

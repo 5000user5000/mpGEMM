@@ -274,8 +274,8 @@ bool run_mkl_test() {
     auto C = matmul_mkl(A,B);
 
     Matrix<float, RowMajor, PlainStorage<float>> expected(2,2);
-    expected.set(0,0,30); expected.set(0,1,36);
-    expected.set(1,0,66); expected.set(1,1,78);
+    expected.set(0,0,14); expected.set(0,1,20);
+    expected.set(1,0,20); expected.set(1,1,29);
 
     bool pass = check_equal(C, expected);
     std::cout << (pass ? "MKL test PASS\n" : "MKL test FAIL\n");

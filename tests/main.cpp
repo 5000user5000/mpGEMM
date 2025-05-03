@@ -10,7 +10,7 @@
 
 int main() {
     // matrix dims
-    constexpr int M = 200, K = 300, N = 200;
+    constexpr int M = 500, K = 600, N = 500;
 
     // rnd generators
     std::mt19937 rng(12345);
@@ -36,6 +36,32 @@ int main() {
     std::cout << "Naive int GEMM: "
               << std::chrono::duration<double,std::milli>(t1-t0).count()
               << " ms\n\n";
+
+    // === Baseline FP32 (naive) ===
+    std::cout << "==== Baseline (float, naive) ====\n";
+    using FloatR = Matrix<float, RowMajor, PlainStorage<float>>;
+    using FloatC = Matrix<float, ColMajor, PlainStorage<float>>;
+
+    // 將 int baseline 轉 float
+    FloatR A_f_naive(M, K);
+    FloatC B_f_naive(K, N);
+
+    for (int i = 0; i < M; ++i)
+        for (int k = 0; k < K; ++k)
+            A_f_naive.set(i, k, static_cast<float>(A_i.at(i, k)));
+
+    for (int k = 0; k < K; ++k)
+        for (int j = 0; j < N; ++j)
+            B_f_naive.set(k, j, static_cast<float>(B_i.at(k, j)));
+
+    auto t6 = std::chrono::high_resolution_clock::now();
+    auto C_f_naive = matmul(A_f_naive, B_f_naive);
+    auto t7 = std::chrono::high_resolution_clock::now();
+
+    std::cout << "Naive float GEMM: "
+            << std::chrono::duration<double, std::milli>(t7 - t6).count()
+            << " ms\n\n";
+
 
     // === Int4 packed test (derived from baseline int) ===
     std::cout << "==== Int4 packed (SIMD LUT) ====\n";

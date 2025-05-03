@@ -1,4 +1,7 @@
-.o
+*.o
 build
 .vscode
-.txt
+*.txt
+*.so
+__pycache__
+.pytest_cache

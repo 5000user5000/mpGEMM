@@ -15,7 +15,8 @@ jobs:
           sudo apt-get -q update
           sudo apt-get -qy install \
                build-essential g++ \
-               intel-mkl-full python3 python3-pytest
+               intel-mkl-full python3 python3-pytest \
+               apt-get install python3-pybind11 -y
 
       - name: Build project
         run: |

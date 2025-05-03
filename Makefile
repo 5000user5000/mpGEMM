@@ -28,7 +28,8 @@ HEADERS    := \
     $(SRC_DIR)/storage_policies.hpp \
     $(SRC_DIR)/matrix.hpp \
     $(SRC_DIR)/matrix_ops.hpp \
-    $(SRC_DIR)/lut_utils.hpp
+    $(SRC_DIR)/lut_utils.hpp \
+	$(SRC_DIR)/post_processing.hpp
 
 .PHONY: all run test clean
 

@@ -1,6 +1,10 @@
 CXX        := g++
 CXXFLAGS   := -std=c++17 -O2 -Wall -I./src -march=native
 
+PYBIND11_INC := $(shell python3 -m pybind11 --includes)
+PYEXT := $(shell python3-config --extension-suffix)
+
+
 # ---- MKL toggle ----
 ifeq ($(USE_MKL),1)
 	MKL_INC := /usr/include/mkl
@@ -28,11 +32,12 @@ HEADERS    := \
     $(SRC_DIR)/storage_policies.hpp \
     $(SRC_DIR)/matrix.hpp \
     $(SRC_DIR)/matrix_ops.hpp \
-    $(SRC_DIR)/lut_utils.hpp
+    $(SRC_DIR)/lut_utils.hpp \
+	$(SRC_DIR)/post_processing.hpp
 
-.PHONY: all run test clean
+.PHONY: all run test clean pytest
 
-all: $(BUILD_DIR) $(TARGET_MAIN) $(TARGET_CORR)
+all: $(BUILD_DIR) $(TARGET_MAIN) $(TARGET_CORR) mpgemm$(PYEXT)
 
 # ensure build directory exists
 $(BUILD_DIR):
@@ -46,6 +51,14 @@ $(TARGET_MAIN): $(TEST_SRC) $(HEADERS)
 $(TARGET_CORR): $(CORR_SRC) $(HEADERS)
 	$(CXX) $(CXXFLAGS) $(CORR_SRC) -o $(TARGET_CORR) $(LDFLAGS) $(LDLIBS)
 
+# build pybind11 module
+mpgemm$(PYEXT): src/bindings.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS) $(PYBIND11_INC) -fPIC -shared src/bindings.cpp -o $@
+
+# run pytest
+pytest: all
+	PYTHONPATH=. python3 -m pytest -q tests/test_post_process.py
+
 run: all
 	./$(TARGET_MAIN)
 
@@ -54,3 +67,4 @@ test: $(TARGET_CORR)
 
 clean:
 	rm -rf $(BUILD_DIR)
+	rm -f mpgemm$(PYEXT)

@@ -4,6 +4,7 @@
 #include "../src/matrix_ops.hpp"
 #include "../src/lut_utils.hpp"
 #include "../src/quant_utils.hpp"
+#include "../src/post_processing.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -283,11 +284,102 @@ bool run_mkl_test() {
 }
 #endif  // USE_MKL
 
+// 9. Bias addition test
+bool run_bias_test() {
+    std::cout << "Running bias addition test...\n";
+    // 2×3 範例
+    Matrix<int,RowMajor,PlainStorage<int>> M(2,3);
+    M.set(0,0,1); M.set(0,1,2); M.set(0,2,3);
+    M.set(1,0,4); M.set(1,1,5); M.set(1,2,6);
+    std::vector<int> bias = {10, 20, 30};
+    auto R = add_bias(M, bias);
+    Matrix<int,RowMajor,PlainStorage<int>> expected(2,3);
+    expected.set(0,0,11); expected.set(0,1,22); expected.set(0,2,33);
+    expected.set(1,0,14); expected.set(1,1,25); expected.set(1,2,36);
+    bool pass = check_equal(R, expected);
+    std::cout << (pass?"Bias test PASS\n":"Bias test FAIL\n");
+    return pass;
+}
+
+// 10. ReLU activation test
+bool run_relu_test() {
+    std::cout << "Running ReLU test...\n";
+    Matrix<int,RowMajor,PlainStorage<int>> M(2,2), E(2,2);
+    // data
+    M.set(0,0,-1); M.set(0,1,0);
+    M.set(1,0, 5); M.set(1,1,-3);
+    // expected
+    E.set(0,0, 0); E.set(0,1, 0);
+    E.set(1,0, 5); E.set(1,1, 0);
+    auto R = apply_activation(M, Activation::ReLU);
+    bool pass = check_equal(R, E);
+    std::cout << (pass?"ReLU test PASS\n":"ReLU test FAIL\n");
+    return pass;
+}
+
+// 11. Sigmoid activation test
+bool run_sigmoid_test() {
+    std::cout << "Running Sigmoid test...\n";
+    Matrix<float,RowMajor,PlainStorage<float>> M(1,3);
+    M.set(0,0, 0.0f);
+    M.set(0,1, 2.0f);
+    M.set(0,2,-2.0f);
+    auto R = apply_activation(M, Activation::Sigmoid);
+
+    // 理論值
+    float s0 = 1.0f/(1+std::exp(-0.0f)); // 0.5
+    float s1 = 1.0f/(1+std::exp(-2.0f));
+    float s2 = 1.0f/(1+std::exp( 2.0f));
+
+    const float eps = 1e-6f;
+    bool pass = std::fabs(R.at(0,0)-s0)<eps
+             && std::fabs(R.at(0,1)-s1)<eps
+             && std::fabs(R.at(0,2)-s2)<eps;
+
+    std::cout << (pass?"Sigmoid test PASS\n":"Sigmoid test FAIL\n");
+    return pass;
+}
+
+// 12. Tanh activation test
+bool run_tanh_test() {
+    std::cout << "Running Tanh test...\n";
+    Matrix<float,RowMajor,PlainStorage<float>> M(1,3);
+    M.set(0,0, 0.0f);
+    M.set(0,1, 1.0f);
+    M.set(0,2,-1.0f);
+    auto R = apply_activation(M, Activation::Tanh);
+
+    float t0 = std::tanh(0.0f); // 0
+    float t1 = std::tanh(1.0f);
+    float t2 = std::tanh(-1.0f);
+
+    const float eps = 1e-6f;
+    bool pass = std::fabs(R.at(0,0)-t0)<eps
+             && std::fabs(R.at(0,1)-t1)<eps
+             && std::fabs(R.at(0,2)-t2)<eps;
+
+    std::cout << (pass?"Tanh test PASS\n":"Tanh test FAIL\n");
+    return pass;
+}
+
+// 13. Linear (identity) test
+bool run_linear_test() {
+    std::cout << "Running Linear (identity) test...\n";
+    Matrix<int,RowMajor,PlainStorage<int>> M(2,2), E(2,2);
+    M.set(0,0,1); M.set(0,1,-2);
+    M.set(1,0, 0); M.set(1,1, 5);
+    // Linear = no-op
+    E = M;
+    auto R = apply_activation(M, Activation::Linear);
+    bool pass = check_equal(R, E);
+    std::cout << (pass?"Linear test PASS\n":"Linear test FAIL\n");
+    return pass;
+}
 
 
 int main() {
     int passed=0;
-    int total=10;
+    int total=15;
     if (run_basic_test()) ++passed;
     if (run_negative_test()) ++passed;
     if (run_non_square_test()) ++passed;
@@ -298,6 +390,11 @@ int main() {
     if (run_int4_int32_test()) ++passed;
     if(run_int4_fast_test()) ++passed;
     if (run_quant_dequant_test()) ++passed;
+    if (run_bias_test()) ++passed;
+    if (run_relu_test()) ++passed;
+    if (run_sigmoid_test()) ++passed;
+    if (run_tanh_test()) ++passed;
+    if (run_linear_test()) ++passed;
     #ifdef USE_MKL
         ++total;                  // 只有啟用 MKL 才加總數
         if (run_mkl_test()) ++passed;

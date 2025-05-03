@@ -28,3 +28,7 @@ jobs:
 
       - name: Run correctness test
         run: make test
+
+      - name: Run Python post-processing tests
+        run: |
+          make pytest

@@ -138,7 +138,5 @@ make pytest
 
 ## References
 
-* 
-[DeepGEMM](https://openaccess.thecvf.com/content/CVPR2023W/ECV/papers/Ganji_Dee
-pGEMM.pdf)
+* [DeepGEMM](https://openaccess.thecvf.com/content/CVPR2023W/ECV/papers/Ganji_DeepGEMM.pdf)
 * [T-MAC](https://arxiv.org/html/2407.00088v1)

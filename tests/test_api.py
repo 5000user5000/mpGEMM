@@ -13,3 +13,10 @@ def test_relu():
     R = mpgemm.apply_activation(M.flatten().tolist(), 2, 2, mpgemm.Activation.ReLU)
     R = np.array(R).reshape(2,2)
     assert np.all(R >= 0)
+
+def test_measure_error():
+    ref  = [1.0, 2.0, 3.0]
+    test = [1.1, 1.9, 2.5]
+    stats = mpgemm.measure_error(ref, test)
+    assert abs(stats["mse"] - 0.09) < 1e-6
+    assert abs(stats["max_error"] - 0.5) < 1e-6

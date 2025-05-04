@@ -53,7 +53,7 @@ $(TARGET_CORR): $(CORR_SRC) $(HEADERS)
 
 # build pybind11 module
 mpgemm$(PYEXT): src/bindings.cpp $(HEADERS)
-	$(CXX) $(CXXFLAGS) $(PYBIND11_INC) -fPIC -shared src/bindings.cpp -o $@
+	$(CXX) $(CXXFLAGS) $(PYBIND11_INC) -fPIC -shared src/bindings.cpp -o $@ $(LDFLAGS) $(LDLIBS)
 
 # run pytest
 pytest: all

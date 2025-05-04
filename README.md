@@ -60,26 +60,31 @@ make
 import mpgemm
 import numpy as np
 
-# Initialize GEMM engine
-gemm = mpgemm.Engine(backend="lut")
+# === Step 1: Initialize engine ===
+gemm = mpgemm.Engine(backend="lut")  # options: "lut", "naive", "mkl"
 
-# Create matrices
-weights = np.random.randint(0, 16, (128, 128), dtype=np.uint8)
-activations = np.random.randn(128, 128).astype(np.float16)
-bias = np.random.randn(128).astype(np.float16)
+# === Step 2: Prepare inputs ===
+M, K, N = 4, 4, 4  # Small size for demonstration
+weights = np.random.randint(0, 16, (M, K), dtype=np.uint8)
+activations = np.random.randn(K, N).astype(np.float16)
+bias = np.random.randn(N).astype(np.float16)
 
-# Generate LUT
+# === Step 3: Generate LUT for int4 × fp16 ===
 gemm.generate_lut(bit_width=4)
 
-# Perform matrix multiplication
-output = gemm.matmul(weights, activations)
+# === Step 4: Matrix multiplication
+output = gemm.matmul(weights, activations, M=M, K=K, N=N)
 
-# Post-process (add bias and activation)
+# === Step 5: Optional post-processing ===
 output = gemm.add_bias(output, bias)
 output = gemm.apply_activation(output, "relu")
 
-print(output.shape)
+# === Step 6: Output ===
+print("Output shape:", output.shape)
+print("Output values:\n", output)
 ```
+
+Full example: scripts/example.py
 
 ### Benchmarking
 

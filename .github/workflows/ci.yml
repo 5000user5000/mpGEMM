@@ -21,7 +21,7 @@ jobs:
         run: |
           make USE_MKL=1
 
-      - name: Run main test
+      - name: Run benchmark
         run: |
           make run
           # python3 scripts/benchmark.py 100

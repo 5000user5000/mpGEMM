@@ -20,8 +20,8 @@ TEST_DIR   := tests
 BUILD_DIR  := build
 
 # main test
-TEST_SRC       := $(TEST_DIR)/main.cpp
-TARGET_MAIN    := $(BUILD_DIR)/main
+TEST_SRC       := $(TEST_DIR)/run_benchmark.cpp
+TARGET_MAIN    := $(BUILD_DIR)/run_benchmark
 
 # correctness suite
 CORR_SRC       := $(TEST_DIR)/test_correctness.cpp   # fix filename

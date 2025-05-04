@@ -5,12 +5,14 @@
 #include "../src/lut_utils.hpp"
 #include "../src/quant_utils.hpp"
 #include "../src/post_processing.hpp"
+#include "../src/accuracy_utils.hpp"
 
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <random>
+#include <cassert>
 
 // Helper: compare two matrices for equality
 template<typename T, typename Layout, typename Storage>
@@ -376,10 +378,24 @@ bool run_linear_test() {
     return pass;
 }
 
+// 14. accuracy test
+bool run_accuracy_test() {
+    std::cout << "Running accuracy test...\n";
+    std::vector<float> A = {1.0f, 2.0f, 3.0f};
+    std::vector<float> B = {1.1f, 1.9f, 2.5f};
+    auto stats = measure_error(A, B);
+    // manual:
+    // diffs = {0.1, -0.1, -0.5}, sq = {0.01,0.01,0.25}, mse = 0.27/3 = 0.09
+    assert(std::fabs(stats.mse - 0.09) < 1e-6);
+    assert(std::fabs(stats.max_error - 0.5) < 1e-6);
+    std::cout << "Accuracy test PASS\n";
+    return true;
+}
+
 
 int main() {
     int passed=0;
-    int total=15;
+    int total=16;
     if (run_basic_test()) ++passed;
     if (run_negative_test()) ++passed;
     if (run_non_square_test()) ++passed;
@@ -395,6 +411,7 @@ int main() {
     if (run_sigmoid_test()) ++passed;
     if (run_tanh_test()) ++passed;
     if (run_linear_test()) ++passed;
+    if (run_accuracy_test()) ++passed;
     #ifdef USE_MKL
         ++total;                  // 只有啟用 MKL 才加總數
         if (run_mkl_test()) ++passed;

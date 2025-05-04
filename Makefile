@@ -57,7 +57,7 @@ mpgemm$(PYEXT): src/bindings.cpp $(HEADERS)
 
 # run pytest
 pytest: all
-	PYTHONPATH=. python3 -m pytest -q tests/test_post_process.py
+	PYTHONPATH=. python3 -m pytest -q tests/test_api.py
 
 run: all
 	./$(TARGET_MAIN)

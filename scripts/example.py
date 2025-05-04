@@ -2,52 +2,55 @@
 import os
 import sys
 
-# Ensure project root is on PYTHONPATH
+# 确保项目根目录在 PYTHONPATH
 sys.path.insert(0, os.path.abspath(os.path.join(__file__, os.pardir, '..')))
 
 import numpy as np
 import mpgemm
 from mpgemm import Activation
 
-
 def main():
-    # Matrix dimensions
+    # 矩阵维度
     M, K, N = 128, 128, 128
 
-    # Random number generator
-    rng = np.random.default_rng(42)
+    # 随机数生成器
+    rng = np.random.default_rng(2025)
 
-    # Generate random quantized weights (INT4 range 0-15)
+    # 生成随机 INT4 权重（0-15）
     weights = rng.integers(0, 16, size=(M, K), dtype=np.uint8)
-    # Generate random FP16 activations
+    # 生成随机 FP16 激活
     activations = rng.standard_normal(size=(K, N)).astype(np.float16)
-    # Generate random bias (FP32)
+    # 随机 bias（FP32）
     bias = rng.standard_normal(size=N).astype(np.float32)
 
-    # Initialize GEMM engine (LUT backend)
-    gemm = mpgemm.Engine("lut")
-    gemm.generate_lut(bit_width=4)
-
-    # Flatten inputs to Python lists
+    # 扁平化并转为 Python 列表
     w_flat = weights.flatten().tolist()
-    # cast activations to Python float list
     a_flat = activations.flatten().astype(float).tolist()
     bias_list = bias.tolist()
 
-    # Perform matrix multiplication
-    out_flat = gemm.matmul(w_flat, a_flat, M, K, N)
+    # === 1. 基准参考输出 ===
+    gemm_ref = mpgemm.Engine("naive")
+    ref_flat = gemm_ref.matmul(w_flat, a_flat, M, K, N)
 
-    # Post-processing
-    out_biased = gemm.add_bias(out_flat, M, N, bias_list)
-    out_relu   = gemm.apply_activation(out_biased, M, N, Activation.ReLU)
+    # === 2. LUT 后端输出 ===
+    gemm_lut = mpgemm.Engine("lut")
+    gemm_lut.generate_lut(bit_width=4)
+    out_flat = gemm_lut.matmul(w_flat, a_flat, M, K, N)
 
-    # Reshape back to matrix
+    # === 3. 后处理示例 ===
+    out_biased = gemm_lut.add_bias(out_flat, M, N, bias_list)
+    out_relu   = gemm_lut.apply_activation(out_biased, M, N, Activation.ReLU)
+
+    # 还原成矩阵
     output = np.array(out_relu, dtype=np.float32).reshape(M, N)
-
-    # Display results
     print(f"Output shape: {output.shape}")
-    print("Sample output [0,:5]:", output[0, :5])
+    print("Sample row[0, :5]:", output[0, :5])
 
+    # === 4. 误差分析示例 ===
+    stats = mpgemm.measure_error(ref_flat, out_flat)
+    print(f"\nError relative to naive:")
+    print(f"  MSE       = {stats['mse']:.6f}")
+    print(f"  Max error = {stats['max_error']:.6f}")
 
 if __name__ == "__main__":
     main()

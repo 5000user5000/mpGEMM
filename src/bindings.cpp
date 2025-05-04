@@ -5,6 +5,7 @@
 #include "lut_utils.hpp"
 #include "post_processing.hpp"
 #include "gemm_engine.hpp"
+#include "accuracy_utils.hpp"
 
 namespace py = pybind11;
 
@@ -71,4 +72,26 @@ PYBIND11_MODULE(mpgemm, m) {
         .def("apply_activation", &Engine::apply_activation,
              "Apply activation to GEMM output",
              py::arg("C"), py::arg("M"), py::arg("N"), py::arg("act"));
+    
+    // --- Error measurement ---
+    py::class_<ErrorStats>(m, "ErrorStats")
+        .def_readonly("mse",       &ErrorStats::mse)
+        .def_readonly("max_error", &ErrorStats::max_error);
+    m.def("measure_error",
+        [](const std::vector<float>& ref,
+            const std::vector<float>& test) {
+            auto s = measure_error(ref, test);
+            py::dict d;
+            d["mse"]       = s.mse;
+            d["max_error"] = s.max_error;
+            return d;
+        },
+        py::arg("reference"),
+        py::arg("test"),
+        R"(
+    Compute error statistics between two flat float lists:
+    - mse: mean squared error
+    - max_error: maximum absolute error
+    Returns a dict: {\"mse\": ..., \"max_error\": ...}
+    )");
 }

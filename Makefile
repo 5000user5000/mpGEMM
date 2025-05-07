@@ -48,19 +48,19 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 # build main
-$(TARGET_MAIN): $(BUILD_DIR) $(TEST_SRC) $(HEADERS)
+$(TARGET_MAIN): $(TEST_SRC) $(HEADERS)
 	$(CXX) $(CXXFLAGS) $(TEST_SRC) -o $(TARGET_MAIN) $(LDFLAGS) $(LDLIBS)
 
 # build correctness suite
-$(TARGET_CORR): $(BUILD_DIR) $(CORR_SRC) $(HEADERS)
+$(TARGET_CORR):  $(CORR_SRC) $(HEADERS)
 	$(CXX) $(CXXFLAGS) $(CORR_SRC) -o $(TARGET_CORR) $(LDFLAGS) $(LDLIBS)
 
 # build matrix ops test
-$(TARGET_MATRIX_OPS): $(BUILD_DIR) $(MATRIX_OPS_SRC) $(HEADERS)
+$(TARGET_MATRIX_OPS): $(MATRIX_OPS_SRC) $(HEADERS)
 	$(CXX) $(CXXFLAGS) -pthread $(MATRIX_OPS_SRC) -o $(TARGET_MATRIX_OPS) $(LDFLAGS) $(LDLIBS)
 
 # build pybind11 module
-mpgemm$(PYEXT): $(BUILD_DIR) src/bindings.cpp $(HEADERS)
+mpgemm$(PYEXT):  src/bindings.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) $(PYBIND11_INC) -fPIC -shared src/bindings.cpp -o $@ $(LDFLAGS) $(LDLIBS)
 
 # run pytest

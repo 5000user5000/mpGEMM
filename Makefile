@@ -24,8 +24,12 @@ TEST_SRC       := $(TEST_DIR)/run_benchmark.cpp
 TARGET_MAIN    := $(BUILD_DIR)/run_benchmark
 
 # correctness suite
-CORR_SRC       := $(TEST_DIR)/test_correctness.cpp   # fix filename
-TARGET_CORR    := $(BUILD_DIR)/test_correctness       # fix binary name
+CORR_SRC       := $(TEST_DIR)/test_correctness.cpp
+TARGET_CORR    := $(BUILD_DIR)/test_correctness
+
+# matrix ops test
+MATRIX_OPS_SRC := $(TEST_DIR)/test_matrix_ops.cpp
+TARGET_MATRIX_OPS := $(BUILD_DIR)/test_matrix_ops
 
 HEADERS    := \
     $(SRC_DIR)/layout_policies.hpp \
@@ -35,24 +39,28 @@ HEADERS    := \
     $(SRC_DIR)/lut_utils.hpp \
 	$(SRC_DIR)/post_processing.hpp
 
-.PHONY: all run test clean pytest
+.PHONY: all run test clean pytest matrix_ops matrix_ops_float matrix_ops_lut
 
-all: $(BUILD_DIR) $(TARGET_MAIN) $(TARGET_CORR) mpgemm$(PYEXT)
+all: $(BUILD_DIR) $(TARGET_MAIN) $(TARGET_CORR) $(TARGET_MATRIX_OPS) mpgemm$(PYEXT)
 
 # ensure build directory exists
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 # build main
-$(TARGET_MAIN): $(TEST_SRC) $(HEADERS)
+$(TARGET_MAIN): $(BUILD_DIR) $(TEST_SRC) $(HEADERS)
 	$(CXX) $(CXXFLAGS) $(TEST_SRC) -o $(TARGET_MAIN) $(LDFLAGS) $(LDLIBS)
 
 # build correctness suite
-$(TARGET_CORR): $(CORR_SRC) $(HEADERS)
+$(TARGET_CORR): $(BUILD_DIR) $(CORR_SRC) $(HEADERS)
 	$(CXX) $(CXXFLAGS) $(CORR_SRC) -o $(TARGET_CORR) $(LDFLAGS) $(LDLIBS)
 
+# build matrix ops test
+$(TARGET_MATRIX_OPS): $(BUILD_DIR) $(MATRIX_OPS_SRC) $(HEADERS)
+	$(CXX) $(CXXFLAGS) -pthread $(MATRIX_OPS_SRC) -o $(TARGET_MATRIX_OPS) $(LDFLAGS) $(LDLIBS)
+
 # build pybind11 module
-mpgemm$(PYEXT): src/bindings.cpp $(HEADERS)
+mpgemm$(PYEXT): $(BUILD_DIR) src/bindings.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) $(PYBIND11_INC) -fPIC -shared src/bindings.cpp -o $@ $(LDFLAGS) $(LDLIBS)
 
 # run pytest
@@ -64,6 +72,19 @@ run: all
 
 test: $(TARGET_CORR)
 	./$(TARGET_CORR)
+
+matrix_ops: $(TARGET_MATRIX_OPS)
+	@echo "Running float version..."
+	@./$(TARGET_MATRIX_OPS) float
+	@echo "\nRunning LUT version..."
+	@./$(TARGET_MATRIX_OPS) lut
+
+# 方便的命令
+matrix_ops_float: $(TARGET_MATRIX_OPS)
+	./$(TARGET_MATRIX_OPS) float
+
+matrix_ops_lut: $(TARGET_MATRIX_OPS)
+	./$(TARGET_MATRIX_OPS) lut
 
 clean:
 	rm -rf $(BUILD_DIR)

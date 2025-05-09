@@ -55,10 +55,12 @@ public:
         switch (backend) {
         case Backend::Naive: {
             Matrix<int,RowMajor,PlainStorage<int>> Wi(M, K), Ai(K, N);
-            // 填充 Wi, Ai
+            // 填充 Wi, Ai，將 uint8_t 轉換為有符號 int
             for (int i = 0; i < M; ++i)
-                for (int j = 0; j < K; ++j)
-                    Wi.set(i, j, (int)Wflat[size_t(i)*K + j]);
+                for (int j = 0; j < K; ++j) {
+                    int val = Wflat[size_t(i)*K + j];
+                    Wi.set(i, j, val < 8 ? val : val - 16);  // 轉換為有符號
+                }
             for (int i = 0; i < K; ++i)
                 for (int j = 0; j < N; ++j)
                     Ai.set(i, j, (int)std::lround(Aflat[size_t(i)*N + j]));
@@ -77,11 +79,15 @@ public:
                 for (int j = 0; j < K; ++j)
                     Wq.set(i,j, Wflat[size_t(i)*K + j]);
             auto Wu = unpack_int4(Wq);
-            // 把 Activation floats 截断、cast 为 uint8 索引
+            // 把 Activation floats 截断、cast 为 uint8 索引，並轉換為有符號
             std::vector<uint8_t> Au(size_t(K)*N);
             for (int i = 0; i < K; ++i)
-                for (int j = 0; j < N; ++j)
-                    Au[size_t(i)*N + j] = uint8_t(std::lround(Aflat[size_t(i)*N + j]));
+                for (int j = 0; j < N; ++j) {
+                    float val = Aflat[size_t(i)*N + j];
+                    int q = std::lround(val);
+                    q = std::clamp(q, -8, 7);  // 限制在有符號 int4 範圍
+                    Au[size_t(i)*N + j] = uint8_t(q < 0 ? q + 16 : q);
+                }
             auto Ci = matmul_lut_fast(Wu, Au, M, K, N, *lut);
             for (int i = 0; i < M; ++i)
                 for (int j = 0; j < N; ++j)

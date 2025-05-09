@@ -253,12 +253,17 @@ bool run_int4_fast_test(){
 // 7. Quantization/Dequantization test
 bool run_quant_dequant_test() {
     std::cout << "Running INT4 quant-dequant test...\n";
-    float scale = 0.25f;       // 假設
+    float scale = 1.0f;       // 假設
     bool pass = true;
-    for (float v : {0.0f, 1.0f, 2.25f, 3.5f}) {
+    // 測試有符號 int4 範圍 (-8 到 +7)
+    for (float v : {-8.0f, -4.0f, 0.0f, 4.0f, 7.0f}) {
         uint8_t q = quantize_int4(v, scale);
         float   d = dequantize_int4(q, scale);
-        if (std::abs(d - std::round(v/scale)*scale) > 1e-3f) pass = false;
+        if (std::abs(d - v) > 1e-3f) {
+            std::cout << "Failed at value " << v << ": quantized=" << (int)q 
+                      << ", dequantized=" << d << "\n";
+            pass = false;
+        }
     }
     std::cout << (pass ? "Quant-Dequant test PASS\n" : "FAIL\n");
     return pass;

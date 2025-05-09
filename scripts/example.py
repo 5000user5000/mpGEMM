@@ -16,15 +16,18 @@ def main():
     # 随机数生成器
     rng = np.random.default_rng(2025)
 
-    # 生成随机 INT4 权重（0-15）
-    weights = rng.integers(0, 16, size=(M, K), dtype=np.uint8)
+    # 生成随机 INT4 权重（-8 到 +7）
+    weights = rng.integers(-8, 8, size=(M, K), dtype=np.int8)
+    # 將有符號 int4 轉換為無符號表示
+    weights_unsigned = np.where(weights < 0, weights + 16, weights).astype(np.uint8)
+    
     # 生成随机 FP16 激活
     activations = rng.standard_normal(size=(K, N)).astype(np.float16)
     # 随机 bias（FP32）
     bias = rng.standard_normal(size=N).astype(np.float32)
 
     # 扁平化并转为 Python 列表
-    w_flat = weights.flatten().tolist()
+    w_flat = weights_unsigned.flatten().tolist()
     a_flat = activations.flatten().astype(float).tolist()
     bias_list = bias.tolist()
 

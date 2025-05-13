@@ -11,7 +11,7 @@ common precision, as hardware lacks native support for mixed-precision matrix
 multiplication (mpGEMM). Some recent research suggests using lookup tables 
 (LUTs) to replace dequantization, further reducing computational overhead.
 
-![LUT](./img/lut.png)
+![LUT](../img/lut.png)
 
 ## Problem to Solve
 

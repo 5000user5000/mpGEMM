@@ -226,18 +226,35 @@ bool run_int4_fast_test(){
     using Mat4C = Matrix<uint8_t, ColMajor, Int4Storage>;
 
     std::mt19937 rng(42);
-    std::uniform_int_distribution<int> d4(0,15);
+    // 修改分佈範圍為 -8 到 7
+    std::uniform_int_distribution<int> d4(-8,7);
 
     Mat4R A4(M,K); Mat4C B4(K,N);
-    for(int i=0;i<M;++i) for(int k=0;k<K;++k) A4.set(i,k,d4(rng));
-    for(int k=0;k<K;++k) for(int j=0;j<N;++j) B4.set(k,j,d4(rng));
+    for(int i=0;i<M;++i) for(int k=0;k<K;++k) {
+        int val = d4(rng);
+        // 將有符號值轉換為無符號存儲
+        A4.set(i,k, val < 0 ? val + 16 : val);
+    }
+    for(int k=0;k<K;++k) for(int j=0;j<N;++j) {
+        int val = d4(rng);
+        // 將有符號值轉換為無符號存儲
+        B4.set(k,j, val < 0 ? val + 16 : val);
+    }
 
     // reference: unpack -> naive matmul
     auto Au = unpack_int4(A4);
     auto Bu = unpack_int4(B4);
     Matrix<int,RowMajor,PlainStorage<int>> Au_mat(M,K), Bu_mat(K,N);
-    for(int i=0;i<M;++i) for(int k=0;k<K;++k) Au_mat.set(i,k,Au[i*K+k]);
-    for(int k=0;k<K;++k) for(int j=0;j<N;++j) Bu_mat.set(k,j,Bu[k*N+j]);
+    for(int i=0;i<M;++i) for(int k=0;k<K;++k) {
+        int val = Au[i*K+k];
+        // 將無符號值轉換回有符號
+        Au_mat.set(i,k, val < 8 ? val : val - 16);
+    }
+    for(int k=0;k<K;++k) for(int j=0;j<N;++j) {
+        int val = Bu[k*N+j];
+        // 將無符號值轉換回有符號
+        Bu_mat.set(k,j, val < 8 ? val : val - 16);
+    }
     auto C_ref = matmul(Au_mat,Bu_mat);
 
     // LUT fast kernel

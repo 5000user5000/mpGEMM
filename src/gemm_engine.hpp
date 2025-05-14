@@ -26,9 +26,9 @@ public:
       : lut(nullptr)
     {
         if      (backend_str == "naive")   backend = Backend::Naive;
-        else if (backend_str == "lut")         backend = Backend::LUT;
+        else if (backend_str == "lut")     backend = Backend::LUT;
 #ifdef USE_MKL
-        else if (backend_str == "mkl")         backend = Backend::MKL;
+        else if (backend_str == "mkl")     backend = Backend::MKL;
 #endif
         else throw std::invalid_argument("Unknown backend: " + backend_str);
     }
@@ -79,15 +79,19 @@ public:
                 for (int j = 0; j < K; ++j)
                     Wq.set(i,j, Wflat[size_t(i)*K + j]);
             auto Wu = unpack_int4(Wq);
-            // 把 Activation floats 截断、cast 为 uint8 索引，並轉換為有符號
+            
+            // 把 Activation floats 截断、cast 为 uint8 索引
             std::vector<uint8_t> Au(size_t(K)*N);
             for (int i = 0; i < K; ++i)
                 for (int j = 0; j < N; ++j) {
                     float val = Aflat[size_t(i)*N + j];
+                    // 將浮點數轉換為有符號 int4 範圍
                     int q = std::lround(val);
                     q = std::clamp(q, -8, 7);  // 限制在有符號 int4 範圍
+                    // 轉換為無符號表示
                     Au[size_t(i)*N + j] = uint8_t(q < 0 ? q + 16 : q);
                 }
+            
             auto Ci = matmul_lut_fast(Wu, Au, M, K, N, *lut);
             for (int i = 0; i < M; ++i)
                 for (int j = 0; j < N; ++j)

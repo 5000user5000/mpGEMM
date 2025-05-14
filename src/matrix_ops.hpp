@@ -8,6 +8,7 @@
 #include <immintrin.h>
 #include <thread>
 #include <mutex>
+#include <iostream>
 
 // =============================================================
 //  Helper: unpack a Matrix<> that uses Int4Storage into a
@@ -135,105 +136,53 @@ Matrix<T> matmul_mkl(const Matrix<T>& A, const Matrix<T>& B) {
 //  Works with or without AVX2 (scalar fallback).
 // =============================================================
 
-auto matmul_lut_fast(const std::vector<uint8_t>& Au,
-                    const std::vector<uint8_t>& Bu,
-                    size_t M, size_t K, size_t N,
-                    const ProductLookupTable<uint8_t, uint8_t, int32_t>& lut,
-                    size_t block_size = 64,  // 增加區塊大小以減少同步開銷
-                    size_t num_threads = 4)
-{
-    const int32_t* lut_ptr = lut.data();
-    const int32_t stride = static_cast<int32_t>(lut.row_stride());
+// LUT-based mixed-precision GEMM kernel
+template <typename A>
+auto matmul_lut_fast(const std::vector<uint8_t>& W,
+                     const std::vector<A>& A_mat,
+                     size_t M, size_t K, size_t N,
+                     ProductLookupTable<uint8_t, A, int32_t>& lut,
+                     size_t block_size = 64,
+                     size_t num_threads = 4) {
+    // Result matrix
     Matrix<int32_t, RowMajor, PlainStorage<int32_t>> C(M, N);
     std::vector<std::thread> threads;
     std::mutex mtx;
-
-    // 預取 LUT 到 L1 cache
-    for (size_t i = 0; i < 16; ++i) {
-        for (size_t j = 0; j < 16; ++j) {
-            _mm_prefetch(reinterpret_cast<const char*>(&lut_ptr[i * stride + j]), _MM_HINT_T0);
-        }
-    }
-
-    // 計算每個執行緒處理的行數
     size_t rows_per_thread = (M + num_threads - 1) / num_threads;
 
-    // 為每個執行緒分配工作
     for (size_t t = 0; t < num_threads; ++t) {
         threads.emplace_back([&, t]() {
-            size_t start_row = t * rows_per_thread;
-            size_t end_row = std::min(start_row + rows_per_thread, M);
-
-            // 為每個執行緒創建局部結果矩陣
-            Matrix<int32_t, RowMajor, PlainStorage<int32_t>> local_C(M, N);
-
-            // 分塊處理
-            for (size_t i = start_row; i < end_row; i += block_size) {
-                size_t i_end = std::min(i + block_size, end_row);
-                
-                for (size_t j = 0; j < N; j += block_size) {
-                    size_t j_end = std::min(j + block_size, N);
-                    
-                    for (size_t k = 0; k < K; k += block_size) {
-                        size_t k_end = std::min(k + block_size, K);
-                        
-                        // 處理當前區塊
+            size_t row_start = t * rows_per_thread;
+            size_t row_end = std::min(row_start + rows_per_thread, M);
+            Matrix<int32_t, RowMajor, PlainStorage<int32_t>> localC(M, N);
+            for (size_t i = row_start; i < row_end; i += block_size) {
+                size_t i_end = std::min(i + block_size, row_end);
+                for (size_t k = 0; k < K; k += block_size) {
+                    size_t k_end = std::min(k + block_size, K);
+                    // For each k in this block, rebuild LUT and accumulate
+                    for (size_t kk = k; kk < k_end; ++kk) {
+                        const A* act_row = &A_mat[kk * N];
+                        lut.fill_from_activation(act_row);
+                        // Accumulate for each row i
                         for (size_t ii = i; ii < i_end; ++ii) {
-                            const uint8_t* rowA = &Au[ii * K];
-                            
-                            for (size_t jj = j; jj < j_end; ++jj) {
-                                int32_t acc = 0;
-                                
-#if defined(__AVX2__)
-                                // 使用 AVX2 處理 8 個元素
-                                for (size_t kk = k; kk + 7 < k_end; kk += 8) {
-                                    __m128i w8 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(rowA + kk));
-                                    __m128i a8 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(&Bu[kk * N + jj]));
-                                    
-                                    __m256i w32 = _mm256_cvtepu8_epi32(w8);
-                                    __m256i a32 = _mm256_cvtepu8_epi32(a8);
-                                    __m256i idx = _mm256_add_epi32(_mm256_mullo_epi32(w32, _mm256_set1_epi32(stride)), a32);
-                                    
-                                    // 預取下一個 LUT 值
-                                    _mm_prefetch(reinterpret_cast<const char*>(&lut_ptr[_mm256_extract_epi32(idx, 0)]), _MM_HINT_T0);
-                                    
-                                    __m256i vals = _mm256_i32gather_epi32(lut_ptr, idx, 4);
-                                    
-                                    // 水平加總
-                                    __m128i low = _mm256_castsi256_si128(vals);
-                                    __m128i high = _mm256_extracti128_si256(vals, 1);
-                                    __m128i sum = _mm_add_epi32(low, high);
-                                    sum = _mm_hadd_epi32(sum, sum);
-                                    sum = _mm_hadd_epi32(sum, sum);
-                                    acc += _mm_cvtsi128_si32(sum);
-                                }
-#endif
-                                // 處理剩餘元素
-                                for (size_t kk = k + ((k_end - k) & ~7); kk < k_end; ++kk) {
-                                    acc += lut_ptr[rowA[kk] * stride + Bu[kk * N + jj]];
-                                }
-                                
-                                local_C.set(ii, jj, local_C.at(ii, jj) + acc);
+                            uint8_t q = W[ii * K + kk];
+                            const int32_t* lut_row = lut.get_row(q);
+                            for (size_t j = 0; j < N; ++j) {
+                                localC.set(ii, j, localC.at(ii, j) + lut_row[j]);
                             }
                         }
                     }
                 }
             }
-
-            // 合併結果
+            // Merge into C
             std::lock_guard<std::mutex> lock(mtx);
-            for (size_t i = start_row; i < end_row; ++i) {
+            for (size_t ii = row_start; ii < row_end; ++ii) {
                 for (size_t j = 0; j < N; ++j) {
-                    C.set(i, j, C.at(i, j) + local_C.at(i, j));
+                    C.set(ii, j, C.at(ii, j) + localC.at(ii, j));
                 }
             }
         });
     }
-
-    // 等待所有執行緒完成
-    for (auto& thread : threads) {
-        thread.join();
-    }
-
+    for (auto& thr : threads) thr.join();
     return C;
 }

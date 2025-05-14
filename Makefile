@@ -1,5 +1,5 @@
 CXX        := g++
-CXXFLAGS   := -std=c++17 -O2 -Wall -I./src -march=native
+CXXFLAGS   := -std=c++17 -O2 -Wall -I./src -march=native -fopenmp
 
 PYBIND11_INC := $(shell python3 -m pybind11 --includes)
 PYEXT := $(shell python3-config --extension-suffix)
@@ -12,6 +12,10 @@ ifeq ($(USE_MKL),1)
 	CXXFLAGS += -DUSE_MKL -I$(MKL_INC)
 	LDLIBS   += -Wl,--no-as-needed -L$(MKL_LIBDIR) -lmkl_rt -lpthread -lm -ldl
 endif
+# --------------------
+
+# ---- OpenMP toggle ----
+LDLIBS   += -lgomp
 # --------------------
 
 

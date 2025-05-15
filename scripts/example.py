@@ -18,12 +18,10 @@ def main():
 
     # 生成随机 INT4 权重（-8 到 +7）
     weights = rng.integers(-8, 8, size=(M, K), dtype=np.int8)
-    print("weights:")
-    print(weights)
+
     # 將有符號 int4 轉換為無符號表示
     weights_unsigned = np.where(weights < 0, weights + 16, weights).astype(np.uint8)
-    print("weights_unsigned:")
-    print(weights_unsigned)
+
     # 生成随机 FP16 激活（使用標準正態分佈）
     activations = rng.standard_normal(size=(K, N)).astype(np.float16)
     # 随机 bias（FP32，範圍也限制在合理範圍內）
@@ -37,15 +35,13 @@ def main():
     # === 1. 基准参考输出 ===
     gemm_ref = mpgemm.Engine("naive")
     ref_flat = gemm_ref.matmul(w_flat, a_flat, M, K, N)
-    print("ref_flat:")
-    print(ref_flat)
+
 
     # === 2. LUT 后端输出 ===
     gemm_lut = mpgemm.Engine("lut")
     gemm_lut.generate_lut(bit_width=4)
     out_flat = gemm_lut.matmul(w_flat, a_flat, M, K, N)
-    print("out_flat:")
-    print(out_flat)
+
 
     # === 3. 后处理示例 ===
     out_biased = gemm_lut.add_bias(out_flat, M, N, bias_list)

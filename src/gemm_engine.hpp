@@ -21,7 +21,6 @@ enum class Backend {
 
 class Engine {
 public:
-    // 构造：支持 "naive"/"lut" (和 "mkl")
     Engine(const std::string &backend_str)
       : lut(nullptr)
     {
@@ -33,7 +32,6 @@ public:
         else throw std::invalid_argument("Unknown backend: " + backend_str);
     }
 
-    // 仅在 LUT 模式下调用，bit_width 一般传 4
     void generate_lut(int bit_width) {
         if (backend != Backend::LUT)
             throw std::runtime_error("generate_lut only valid for LUT backend");
@@ -43,7 +41,6 @@ public:
         lut = std::make_unique<ProductLookupTable<uint8_t,uint8_t,int32_t>>(range, range);
     }
 
-    // matmul: Wflat 是 uint8_t(int4 存 raw)，Aflat 是 float(list)
     std::vector<float> matmul(
         const std::vector<uint8_t>& Wflat,
         const std::vector<float>&   Aflat,
@@ -55,16 +52,14 @@ public:
         switch (backend) {
         case Backend::Naive: {
             Matrix<int,RowMajor,PlainStorage<int>> Wi(M, K), Ai(K, N);
-            // 填充 Wi, Ai，將 uint8_t 轉換為有符號 int
             for (int i = 0; i < M; ++i)
                 for (int j = 0; j < K; ++j) {
                     int val = Wflat[size_t(i)*K + j];
-                    Wi.set(i, j, val < 8 ? val : val - 16);  // 轉換為有符號
+                    Wi.set(i, j, val < 8 ? val : val - 16);  
                 }
             for (int i = 0; i < K; ++i)
                 for (int j = 0; j < N; ++j)
                     Ai.set(i, j, (int)std::lround(Aflat[size_t(i)*N + j]));
-            // 调用全局 ::matmul
             auto C = ::matmul(Wi, Ai);
             for (int i = 0; i < M; ++i)
                 for (int j = 0; j < N; ++j)
@@ -73,22 +68,19 @@ public:
         }
         case Backend::LUT: {
             if (!lut) throw std::runtime_error("LUT not generated");
-            // 从 raw uint8 构造 Int4Storage 矩阵并 unpack
+
             Matrix<uint8_t,RowMajor,Int4Storage> Wq(M,K);
             for (int i = 0; i < M; ++i)
                 for (int j = 0; j < K; ++j)
                     Wq.set(i,j, Wflat[size_t(i)*K + j]);
             auto Wu = unpack_int4(Wq);
             
-            // 把 Activation floats 截断、cast 为 uint8 索引
             std::vector<uint8_t> Au(size_t(K)*N);
             for (int i = 0; i < K; ++i)
                 for (int j = 0; j < N; ++j) {
                     float val = Aflat[size_t(i)*N + j];
-                    // 將浮點數轉換為有符號 int4 範圍
                     int q = std::lround(val);
-                    q = std::clamp(q, -8, 7);  // 限制在有符號 int4 範圍
-                    // 轉換為無符號表示
+                    q = std::clamp(q, -8, 7);
                     Au[size_t(i)*N + j] = uint8_t(q < 0 ? q + 16 : q);
                 }
             

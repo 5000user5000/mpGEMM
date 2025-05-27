@@ -83,7 +83,6 @@ matrix_ops: $(TARGET_MATRIX_OPS)
 	@echo "\nRunning LUT version..."
 	@./$(TARGET_MATRIX_OPS) lut
 
-# 方便的命令
 matrix_ops_float: $(TARGET_MATRIX_OPS)
 	./$(TARGET_MATRIX_OPS) float
 

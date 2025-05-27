@@ -46,16 +46,13 @@ auto matmul(const MA& A, const MB& B, size_t num_threads = 4)
     Matrix<T, RowMajor, PlainStorage<T>> C(M, N);
     std::vector<std::thread> threads;
 
-    // 計算每個執行緒處理的行數
     size_t rows_per_thread = (M + num_threads - 1) / num_threads;
 
-    // 為每個執行緒分配工作
     for (size_t t = 0; t < num_threads; ++t) {
         threads.emplace_back([&, t]() {
             size_t start_row = t * rows_per_thread;
             size_t end_row = std::min(start_row + rows_per_thread, M);
 
-            // 為每個執行緒創建局部結果矩陣
             Matrix<T, RowMajor, PlainStorage<T>> local_C(M, N);
 
             for (size_t i = start_row; i < end_row; ++i) {
@@ -67,7 +64,6 @@ auto matmul(const MA& A, const MB& B, size_t num_threads = 4)
                 }
             }
 
-            // 合併結果
             static std::mutex mtx;
             std::lock_guard<std::mutex> lock(mtx);
             for (size_t i = start_row; i < end_row; ++i) {
@@ -78,7 +74,6 @@ auto matmul(const MA& A, const MB& B, size_t num_threads = 4)
         });
     }
 
-    // 等待所有執行緒完成
     for (auto& thread : threads) {
         thread.join();
     }

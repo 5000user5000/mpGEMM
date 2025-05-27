@@ -9,11 +9,9 @@ void run_float() {
     const size_t K = 1024;
     const size_t N = 1024;
     
-    // 建立 float 矩陣
     Matrix<float, RowMajor, PlainStorage<float>> A_float(M, K);
     Matrix<float, RowMajor, PlainStorage<float>> B_float(K, N);
     
-    // 初始化矩陣
     for (size_t i = 0; i < M; ++i) {
         for (size_t j = 0; j < K; ++j) {
             A_float.set(i, j, static_cast<float>(i + j) / 1000.0f);
@@ -38,11 +36,9 @@ void run_lut() {
     const size_t K = 1024;
     const size_t N = 1024;
     
-    // 建立 int4 矩陣
     Matrix<uint8_t, RowMajor, Int4Storage> A_int4(M, K);
     Matrix<uint8_t, RowMajor, Int4Storage> B_int4(K, N);
     
-    // 初始化矩陣
     for (size_t i = 0; i < M; ++i) {
         for (size_t j = 0; j < K; ++j) {
             A_int4.set(i, j, (i + j) % 16);
@@ -55,7 +51,6 @@ void run_lut() {
         }
     }
     
-    // 建立查找表
     ProductLookupTable<uint8_t, uint8_t, int32_t> lut(16, 16);
     
     auto start = std::chrono::high_resolution_clock::now();

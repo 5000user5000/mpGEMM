@@ -226,18 +226,17 @@ bool run_int4_fast_test(){
     using Mat4C = Matrix<uint8_t, ColMajor, Int4Storage>;
 
     std::mt19937 rng(42);
-    // 修改分佈範圍為 -8 到 7
     std::uniform_int_distribution<int> d4(-8,7);
 
     Mat4R A4(M,K); Mat4C B4(K,N);
     for(int i=0;i<M;++i) for(int k=0;k<K;++k) {
         int val = d4(rng);
-        // 將有符號值轉換為無符號存儲
+        // signed to unsigned conversion
         A4.set(i,k, val < 0 ? val + 16 : val);
     }
     for(int k=0;k<K;++k) for(int j=0;j<N;++j) {
         int val = d4(rng);
-        // 將有符號值轉換為無符號存儲
+        // signed to unsigned conversion
         B4.set(k,j, val < 0 ? val + 16 : val);
     }
 
@@ -247,12 +246,12 @@ bool run_int4_fast_test(){
     Matrix<int,RowMajor,PlainStorage<int>> Au_mat(M,K), Bu_mat(K,N);
     for(int i=0;i<M;++i) for(int k=0;k<K;++k) {
         int val = Au[i*K+k];
-        // 將無符號值轉換回有符號
+        // unsign to signed conversion
         Au_mat.set(i,k, val < 8 ? val : val - 16);
     }
     for(int k=0;k<K;++k) for(int j=0;j<N;++j) {
         int val = Bu[k*N+j];
-        // 將無符號值轉換回有符號
+        // unsign to signed conversion
         Bu_mat.set(k,j, val < 8 ? val : val - 16);
     }
     auto C_ref = matmul(Au_mat,Bu_mat);
@@ -270,9 +269,9 @@ bool run_int4_fast_test(){
 // 7. Quantization/Dequantization test
 bool run_quant_dequant_test() {
     std::cout << "Running INT4 quant-dequant test...\n";
-    float scale = 1.0f;       // 假設
+    float scale = 1.0f;       // default scale for quantization
     bool pass = true;
-    // 測試有符號 int4 範圍 (-8 到 +7)
+    // int4 (-8 ~ +7)
     for (float v : {-8.0f, -4.0f, 0.0f, 4.0f, 7.0f}) {
         uint8_t q = quantize_int4(v, scale);
         float   d = dequantize_int4(q, scale);
@@ -311,7 +310,7 @@ bool run_mkl_test() {
 // 9. Bias addition test
 bool run_bias_test() {
     std::cout << "Running bias addition test...\n";
-    // 2×3 範例
+    // 2×3 matrix with bias vector
     Matrix<int,RowMajor,PlainStorage<int>> M(2,3);
     M.set(0,0,1); M.set(0,1,2); M.set(0,2,3);
     M.set(1,0,4); M.set(1,1,5); M.set(1,2,6);
@@ -350,7 +349,6 @@ bool run_sigmoid_test() {
     M.set(0,2,-2.0f);
     auto R = apply_activation(M, Activation::Sigmoid);
 
-    // 理論值
     float s0 = 1.0f/(1+std::exp(-0.0f)); // 0.5
     float s1 = 1.0f/(1+std::exp(-2.0f));
     float s2 = 1.0f/(1+std::exp( 2.0f));
@@ -435,7 +433,7 @@ int main() {
     if (run_linear_test()) ++passed;
     if (run_accuracy_test()) ++passed;
     #ifdef USE_MKL
-        ++total;                  // 只有啟用 MKL 才加總數
+        ++total;                  // MKL test is optional
         if (run_mkl_test()) ++passed;
     #endif
     std::cout << "\nTotal: " << passed << "/" << total << " tests passed.\n";

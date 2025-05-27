@@ -3,7 +3,7 @@
 #include <cmath>
 #include "matrix.hpp"
 
-/// 後處理可選激活函式
+
 enum class Activation {
     Linear,
     ReLU,
@@ -11,7 +11,6 @@ enum class Activation {
     Tanh
 };
 
-/// 1) bias 加法：對於每一列，將 bias[j] 加到 M(i,j)
 template<typename T, typename Layout, typename Storage>
 Matrix<T,Layout,Storage> add_bias(
     const Matrix<T,Layout,Storage>& M,

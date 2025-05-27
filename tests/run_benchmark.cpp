@@ -11,18 +11,17 @@
 #include <cstdlib>
 
 int main(int argc, char** argv) {
-    // 默认参数
+    // default prameters
     int M = 500, K = 600, N = 500;
     bool run_naive_int   = true;
     bool run_naive_float = true;
     bool run_lut         = true;
     #ifdef USE_MKL
-        bool run_mkl = true;    // 默认为 true
+        bool run_mkl = true;
     #else
         bool run_mkl = false;
     #endif
 
-    // 解析命令行
     for (int i = 1; i < argc; ++i) {
         if      (strcmp(argv[i], "--m")==0)          M = std::atoi(argv[++i]);
         else if (strcmp(argv[i], "--k")==0)          K = std::atoi(argv[++i]);
@@ -34,17 +33,16 @@ int main(int argc, char** argv) {
 
     std::cout << "[Shape] M=" << M << ", K=" << K << ", N=" << N << "\n\n";
 
-    // 随机数生成
+    // random number generator
     std::mt19937 rng(12345);
     std::uniform_int_distribution<int> dist_int(0, 100);
 
-    // 准备基准数据（int）
+    // generate random matrices
     Matrix<int,RowMajor,PlainStorage<int>> A_i(M, K), B_i(K, N);
     for (int i=0; i<M; ++i) for (int k=0; k<K; ++k) A_i.set(i,k, dist_int(rng));
     for (int k=0; k<K; ++k) for (int j=0; j<N; ++j) B_i.set(k,j, dist_int(rng));
 
-    // 准备 LUT unpack
-    // 先构造 Int4Storage 矩阵
+
     using Int4R = Matrix<uint8_t, RowMajor, Int4Storage>;
     using Int4C = Matrix<uint8_t, ColMajor, Int4Storage>;
     Int4R A4(M, K);
@@ -56,7 +54,6 @@ int main(int argc, char** argv) {
         for (int j = 0; j < N; ++j)
             B4.set(k, j, static_cast<uint8_t>(B_i.at(k, j) & 0x0F));
 
-    // 再 unpack
     auto Au = unpack_int4(A4);
     auto Bu = unpack_int4(B4);
     ProductLookupTable<uint8_t,uint8_t,int32_t> lut(16,16);
